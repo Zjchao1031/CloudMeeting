@@ -1,34 +1,80 @@
 cmake_minimum_required(VERSION 3.19)
 project(CloudMeetingClient LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Multimedia Network)
+
+set(FFMPEG_DIR "F:/ffmpeg-master-latest-win64-lgpl-shared")
+include_directories(${FFMPEG_DIR}/include)
+link_directories(${FFMPEG_DIR}/lib)
+
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 qt_standard_project_setup()
 
+set(CLIENT_SOURCES
+    src/main.cpp
+    src/app/Application.cpp
+    src/app/AppContext.cpp
+    src/ui/MainWindow.cpp
+    include/ui/MainWindow.h
+    src/ui/MeetingWindow.cpp
+    include/ui/MeetingWindow.h
+    src/ui/widgets/VideoTileWidget.cpp
+    include/ui/widgets/VideoTileWidget.h
+    src/ui/widgets/ParticipantListWidget.cpp
+    include/ui/widgets/ParticipantListWidget.h
+    src/ui/widgets/ChatPanel.cpp
+    include/ui/widgets/ChatPanel.h
+    src/ui/widgets/ToolBarPanel.cpp
+    include/ui/widgets/ToolBarPanel.h
+    src/domain/service/MeetingController.cpp
+    src/domain/service/ParticipantRepository.cpp
+    src/domain/service/ChatService.cpp
+    src/domain/service/UserProfileService.cpp
+    src/network/NetworkFacade.cpp
+    src/network/SignalingClient.cpp
+    include/network/SignalingClient.h
+    src/network/MediaUdpClient.cpp
+    include/network/MediaUdpClient.h
+    src/network/PacketCodec.cpp
+    src/network/ReconnectStrategy.cpp
+    src/media/MediaEngine.cpp
+    src/media/capture/CameraCaptureStrategy.cpp
+    src/media/capture/ScreenCaptureStrategy.cpp
+    src/media/codec/CodecFactory.cpp
+    src/media/codec/VideoEncoder.cpp
+    src/media/codec/VideoDecoder.cpp
+    src/media/codec/AudioEncoder.cpp
+    src/media/codec/AudioDecoder.cpp
+    src/media/device/DeviceManager.cpp
+    src/common/Logger.cpp
+)
+
 qt_add_executable(CloudMeetingClient
-    WIN32 MACOSX_BUNDLE
-    main.cpp
-    mainwindow.cpp
-    mainwindow.h
+    WIN32
+    ${CLIENT_SOURCES}
 )
 
 target_link_libraries(CloudMeetingClient
     PRIVATE
-        Qt::Core
-        Qt::Widgets
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::Multimedia
+        Qt6::Network
+        avcodec
+        avformat
+        avutil
+        swscale
+        swresample
 )
 
 include(GNUInstallDirs)
-
 install(TARGETS CloudMeetingClient
     BUNDLE  DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-
-qt_generate_deploy_app_script(
-    TARGET CloudMeetingClient
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
-)
-install(SCRIPT ${deploy_script})
