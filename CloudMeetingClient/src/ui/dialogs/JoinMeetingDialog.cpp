@@ -109,9 +109,9 @@ void JoinMeetingDialog::setupUi()
     auto *btnRow = new QHBoxLayout;
     btnRow->setSpacing(12);
     m_cancelBtn = new QPushButton("取消", this);
-    m_cancelBtn->setObjectName("outlineBtn");
+    m_cancelBtn->setObjectName("smallOutlineBtn");
     m_joinBtn   = new QPushButton("加入", this);
-    m_joinBtn->setObjectName("primaryBtn");
+    m_joinBtn->setObjectName("smallBtn");
     btnRow->addWidget(m_cancelBtn);
     btnRow->addWidget(m_joinBtn);
     root->addLayout(btnRow);
