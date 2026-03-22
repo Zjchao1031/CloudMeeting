@@ -12,6 +12,7 @@ link_directories(${FFMPEG_DIR}/lib)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 qt_standard_project_setup()
@@ -20,10 +21,24 @@ set(CLIENT_SOURCES
     src/main.cpp
     src/app/Application.cpp
     src/app/AppContext.cpp
+
+    # UI - Main windows
     src/ui/MainWindow.cpp
     include/ui/MainWindow.h
     src/ui/MeetingWindow.cpp
     include/ui/MeetingWindow.h
+
+    # UI - Dialogs
+    src/ui/dialogs/UserProfileDialog.cpp
+    include/ui/dialogs/UserProfileDialog.h
+    src/ui/dialogs/CreateMeetingDialog.cpp
+    include/ui/dialogs/CreateMeetingDialog.h
+    src/ui/dialogs/JoinMeetingDialog.cpp
+    include/ui/dialogs/JoinMeetingDialog.h
+    src/ui/dialogs/ConfirmDialog.cpp
+    include/ui/dialogs/ConfirmDialog.h
+
+    # UI - Widgets
     src/ui/widgets/VideoTileWidget.cpp
     include/ui/widgets/VideoTileWidget.h
     src/ui/widgets/ParticipantListWidget.cpp
@@ -32,10 +47,14 @@ set(CLIENT_SOURCES
     include/ui/widgets/ChatPanel.h
     src/ui/widgets/ToolBarPanel.cpp
     include/ui/widgets/ToolBarPanel.h
+
+    # Domain services (stubs)
     src/domain/service/MeetingController.cpp
     src/domain/service/ParticipantRepository.cpp
     src/domain/service/ChatService.cpp
     src/domain/service/UserProfileService.cpp
+
+    # Network (stubs)
     src/network/NetworkFacade.cpp
     src/network/SignalingClient.cpp
     include/network/SignalingClient.h
@@ -43,6 +62,8 @@ set(CLIENT_SOURCES
     include/network/MediaUdpClient.h
     src/network/PacketCodec.cpp
     src/network/ReconnectStrategy.cpp
+
+    # Media (stubs)
     src/media/MediaEngine.cpp
     src/media/capture/CameraCaptureStrategy.cpp
     src/media/capture/ScreenCaptureStrategy.cpp
@@ -52,6 +73,8 @@ set(CLIENT_SOURCES
     src/media/codec/AudioEncoder.cpp
     src/media/codec/AudioDecoder.cpp
     src/media/device/DeviceManager.cpp
+
+    # Common
     src/common/Logger.cpp
 )
 
