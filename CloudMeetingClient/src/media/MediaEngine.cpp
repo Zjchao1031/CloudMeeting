@@ -1,3 +1,7 @@
+/**
+ * @file MediaEngine.cpp
+ * @brief 实现媒体能力调度引擎。
+ */
 #include "media/MediaEngine.h"
 #include "media/capture/CameraCaptureStrategy.h"
 #include "media/capture/ScreenCaptureStrategy.h"

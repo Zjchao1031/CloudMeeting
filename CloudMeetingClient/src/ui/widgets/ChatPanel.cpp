@@ -1,3 +1,7 @@
+/**
+ * @file ChatPanel.cpp
+ * @brief 实现会议聊天面板组件。
+ */
 #include "ui/widgets/ChatPanel.h"
 #include <QHBoxLayout>
 #include <QLabel>
@@ -8,7 +12,10 @@
 #include <QTimer>
 #include <functional>
 
-// Key filter: intercept Enter in QTextEdit via callback (no Q_OBJECT needed)
+/**
+ * @class InputKeyFilter
+ * @brief 拦截输入框回车键并触发发送回调的事件过滤器。
+ */
 class InputKeyFilter : public QObject
 {
 public:
@@ -32,6 +39,12 @@ private:
     std::function<void()> m_onSend;
 };
 
+/**
+ * @brief 生成聊天消息头像占位图。
+ * @param[in] initial 头像显示用的首字符文本。
+ * @param[in] size 头像边长尺寸，单位：像素。
+ * @return 生成的圆形头像图像。
+ */
 static QPixmap makeAvatarPix(const QString &initial, int size)
 {
     QPixmap pix(size, size);
@@ -65,14 +78,14 @@ void ChatPanel::setupUi()
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-    // Header
-    auto *header = new QLabel("\u6587\u5b57\u804a\u5929", this);
+    // 顶部标题区域。
+    auto *header = new QLabel("文字聊天", this);
     header->setStyleSheet(
         "color: #8888A8; font-size: 12px; font-weight: 600;"
         "padding: 8px 16px; background: #1E1E2E; border-bottom: 1px solid #2E2E44;");
     root->addWidget(header);
 
-    // Scroll area for messages
+    // 消息滚动区域。
     m_scrollArea = new QScrollArea(this);
     m_scrollArea->setWidgetResizable(true);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -87,13 +100,13 @@ void ChatPanel::setupUi()
     m_scrollArea->setWidget(m_messagesContainer);
     root->addWidget(m_scrollArea, 1);
 
-    // Separator
+    // 输入区域分隔线。
     auto *sep = new QFrame(this);
     sep->setFrameShape(QFrame::HLine);
     sep->setStyleSheet("color: #2E2E44;");
     root->addWidget(sep);
 
-    // Input area
+    // 消息输入区域。
     auto *inputArea = new QWidget(this);
     inputArea->setStyleSheet("background: #1E1E2E;");
     auto *inputRow = new QHBoxLayout(inputArea);
@@ -118,7 +131,7 @@ void ChatPanel::setupUi()
 
     connect(sendBtn, &QPushButton::clicked, this, &ChatPanel::onSendClicked);
 
-    // Enter key filter via lambda callback
+    // 通过事件过滤器支持回车发送。
     m_inputEdit->installEventFilter(
         new InputKeyFilter([this]() { onSendClicked(); }, this));
 }
@@ -145,7 +158,7 @@ void ChatPanel::appendMessage(const QString &userId, const QString &nickname,
     msg.nickname = nickname;
     msg.content  = content;
 
-    int idx = m_messagesLayout->count() - 1; // before stretch
+    int idx = m_messagesLayout->count() - 1; // 在尾部弹性项之前插入新消息。
     m_messagesLayout->insertWidget(idx, makeBubble(msg));
     QTimer::singleShot(0, this, &ChatPanel::scrollToBottom);
 }
@@ -189,14 +202,14 @@ QWidget* ChatPanel::makeBubble(const ChatMessageData &msg)
     row->setSpacing(10);
     row->setAlignment(Qt::AlignTop);
 
-    // Avatar
+    // 头像区域。
     auto *avatarLabel = new QLabel(bubble);
     avatarLabel->setFixedSize(40, 40);
     avatarLabel->setPixmap(makeAvatarPix(msg.nickname, 40));
     avatarLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     row->addWidget(avatarLabel, 0, Qt::AlignTop);
 
-    // Right column
+    // 消息文本列。
     auto *col = new QVBoxLayout;
     col->setSpacing(4);
     col->setContentsMargins(0, 0, 0, 0);

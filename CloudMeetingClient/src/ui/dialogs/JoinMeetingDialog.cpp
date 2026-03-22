@@ -1,3 +1,7 @@
+/**
+ * @file JoinMeetingDialog.cpp
+ * @brief 实现加入会议对话框。
+ */
 #include "ui/dialogs/JoinMeetingDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -24,7 +28,7 @@ QString JoinMeetingDialog::password() const
 
 bool JoinMeetingDialog::promptPassword()
 {
-    // Inline password sub-dialog
+    // 内嵌密码输入子对话框。
     QDialog dlg(this);
     dlg.setWindowTitle("输入会议密码");
     dlg.setFixedSize(320, 200);

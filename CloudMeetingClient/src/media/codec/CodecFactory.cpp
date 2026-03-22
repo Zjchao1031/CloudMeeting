@@ -1,3 +1,7 @@
+/**
+ * @file CodecFactory.cpp
+ * @brief 实现媒体编解码器工厂类。
+ */
 #include "media/codec/CodecFactory.h"
 #include "media/codec/VideoEncoder.h"
 #include "media/codec/VideoDecoder.h"

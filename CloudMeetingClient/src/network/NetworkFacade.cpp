@@ -1,3 +1,7 @@
+/**
+ * @file NetworkFacade.cpp
+ * @brief 实现网络访问门面类。
+ */
 #include "network/NetworkFacade.h"
 #include "network/SignalingClient.h"
 #include "network/MediaUdpClient.h"

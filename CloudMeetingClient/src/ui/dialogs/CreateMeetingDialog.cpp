@@ -1,3 +1,7 @@
+/**
+ * @file CreateMeetingDialog.cpp
+ * @brief 实现创建会议对话框。
+ */
 #include "ui/dialogs/CreateMeetingDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>

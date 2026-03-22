@@ -1,10 +1,18 @@
 #pragma once
 #include <QString>
 
-// 全局深色主题色板
+/**
+ * @file AppStyle.h
+ * @brief 定义应用全局界面样式表。
+ */
+
+/**
+ * @namespace AppStyle
+ * @brief 提供客户端统一使用的全局样式资源。
+ */
 namespace AppStyle {
 
-inline const char* GLOBAL_QSS = R"QSS(
+inline const char *GLOBAL_QSS = R"QSS(
 /* ===== 全局基础 ===== */
 QWidget {
     background-color: #1E1E2E;

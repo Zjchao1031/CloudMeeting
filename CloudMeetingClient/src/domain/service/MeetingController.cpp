@@ -1,3 +1,7 @@
+/**
+ * @file MeetingController.cpp
+ * @brief 实现会议控制业务流程。
+ */
 #include "domain/service/MeetingController.h"
 #include "network/NetworkFacade.h"
 

@@ -1,3 +1,7 @@
+/**
+ * @file SignalingClient.cpp
+ * @brief 实现 TCP 信令客户端。
+ */
 #include "network/SignalingClient.h"
 #include "network/PacketCodec.h"
 #include "common/Constants.h"

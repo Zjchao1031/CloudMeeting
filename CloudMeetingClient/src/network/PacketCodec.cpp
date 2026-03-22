@@ -1,3 +1,7 @@
+/**
+ * @file PacketCodec.cpp
+ * @brief 实现信令数据包编解码工具类。
+ */
 #include "network/PacketCodec.h"
 #include <QJsonDocument>
 #include <QDataStream>

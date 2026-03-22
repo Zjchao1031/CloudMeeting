@@ -1,10 +1,14 @@
+/**
+ * @file DeviceManager.cpp
+ * @brief 实现媒体设备管理器。
+ */
 #include "media/device/DeviceManager.h"
 
 DeviceManager::DeviceManager() {}
 
 void DeviceManager::enumerateDevices()
 {
-    // TODO: 枚举系统摄像头与麦克风设备
+    // 待实现：枚举系统摄像头与麦克风设备。
 }
 
 QList<DeviceInfo> DeviceManager::cameras() const    { return m_cameras; }

@@ -1,3 +1,7 @@
+/**
+ * @file ConfirmDialog.cpp
+ * @brief 实现通用确认、提示与错误弹窗。
+ */
 #include "ui/dialogs/ConfirmDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -54,7 +58,7 @@ void ConfirmDialog::setupUi(const QString &title, const QString &message,
     root->setContentsMargins(28, 28, 28, 24);
     root->setSpacing(16);
 
-    // Icon + title
+    // 图标与标题区域。
     QString icon;
     switch (type) {
         case Type::Danger: icon = "[!]  "; break;
@@ -79,7 +83,7 @@ void ConfirmDialog::setupUi(const QString &title, const QString &message,
 
     root->addSpacing(8);
 
-    // Buttons
+    // 操作按钮区域。
     auto *btnRow = new QHBoxLayout;
     btnRow->setSpacing(12);
     btnRow->addStretch();
@@ -109,7 +113,7 @@ void ConfirmDialog::setupUi(const QString &title, const QString &message,
 
     root->addLayout(btnRow);
 
-    // Esc closes dialog (for non-danger types)
+    // 为非危险弹窗启用 Esc 快捷关闭。
     if (type != Type::Danger) {
         auto *esc = new QShortcut(QKeySequence(Qt::Key_Escape), this);
         connect(esc, &QShortcut::activated, this, &QDialog::reject);

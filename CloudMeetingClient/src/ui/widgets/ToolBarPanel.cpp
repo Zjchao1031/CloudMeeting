@@ -1,3 +1,7 @@
+/**
+ * @file ToolBarPanel.cpp
+ * @brief 实现会议底部工具栏组件。
+ */
 #include "ui/widgets/ToolBarPanel.h"
 #include <QHBoxLayout>
 #include <QLabel>
@@ -60,17 +64,17 @@ void ToolBarPanel::setupUi()
     m_playbackSlider->setRange(0, 100);
     m_playbackSlider->setValue(75);
     m_playbackSlider->setFixedWidth(90);
-    m_playbackSlider->setToolTip("\u64ad\u653e\u97f3\u91cf");
+    m_playbackSlider->setToolTip("播放音量");
     row->addWidget(playLabel);
     row->addWidget(m_playbackSlider);
 
     row->addStretch();
 
-    m_leaveBtn = new QPushButton("\u9000\u51fa\u4f1a\u8bae", this);
+    m_leaveBtn = new QPushButton("退出会议", this);
     m_leaveBtn->setObjectName("leaveBtn");
     row->addWidget(m_leaveBtn);
 
-    // Apply initial styles
+    // 应用初始按钮样式。
     updateButtonStyle(m_cameraBtn,      m_cameraOn);
     updateButtonStyle(m_micBtn,         m_micOn);
     updateButtonStyle(m_screenShareBtn, m_screenShareOn);

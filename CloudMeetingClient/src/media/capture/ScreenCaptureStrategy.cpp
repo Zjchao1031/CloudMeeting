@@ -1,3 +1,7 @@
+/**
+ * @file ScreenCaptureStrategy.cpp
+ * @brief 实现屏幕共享采集策略。
+ */
 #include "media/capture/ScreenCaptureStrategy.h"
 
 ScreenCaptureStrategy::ScreenCaptureStrategy() {}

@@ -1,3 +1,7 @@
+/**
+ * @file VideoEncoder.cpp
+ * @brief 实现视频编码器封装类。
+ */
 #include "media/codec/VideoEncoder.h"
 
 VideoEncoder::VideoEncoder() {}
@@ -15,5 +19,5 @@ void VideoEncoder::close() { m_opened = false; }
 QByteArray VideoEncoder::encode(const QImage &frame)
 {
     Q_UNUSED(frame)
-    return {}; // TODO: FFmpeg H.264 编码
+    return {}; // 待实现：FFmpeg H.264 编码。
 }

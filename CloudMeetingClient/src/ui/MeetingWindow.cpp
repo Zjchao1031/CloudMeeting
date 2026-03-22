@@ -1,3 +1,7 @@
+/**
+ * @file MeetingWindow.cpp
+ * @brief 实现会议进行中的主界面窗口。
+ */
 #include "ui/MeetingWindow.h"
 #include "ui/widgets/ParticipantListWidget.h"
 #include "ui/widgets/ChatPanel.h"
@@ -35,16 +39,16 @@ void MeetingWindow::setupUi()
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-    // Top bar
+    // 顶部栏。
     root->addWidget(makeTopBar());
 
-    // Main content splitter
+    // 主内容分割区域。
     auto *mainSplit = new QSplitter(Qt::Horizontal, this);
     mainSplit->setHandleWidth(1);
     mainSplit->setStyleSheet("QSplitter::handle { background: #2E2E44; }");
     root->addWidget(mainSplit, 1);
 
-    // Left: video scroll area
+    // 左侧视频滚动区域。
     auto *videoContainer = new QWidget(mainSplit);
     videoContainer->setStyleSheet("background: #121220;");
     auto *videoOuterLayout = new QVBoxLayout(videoContainer);
@@ -63,13 +67,13 @@ void MeetingWindow::setupUi()
     m_videoLayout->setContentsMargins(0, 0, 0, 0);
     m_videoLayout->setSpacing(10);
 
-    // Mock video tiles
+    // 模拟视频卡片。
     auto *tile1 = new VideoTileWidget(videoInner);
-    tile1->setWatermark("\u5f20\u4e09\uff08\u4e3b\u6301\u4eba\uff09");
+    tile1->setWatermark("张三（主持人）");
     auto *tile2 = new VideoTileWidget(videoInner);
-    tile2->setWatermark("\u674e\u56db");
+    tile2->setWatermark("李四");
     auto *tile3 = new VideoTileWidget(videoInner);
-    tile3->setWatermark("\u738b\u4e94");
+    tile3->setWatermark("王五");
 
     m_videoLayout->addWidget(tile1);
     m_videoLayout->addWidget(tile2);
@@ -80,7 +84,7 @@ void MeetingWindow::setupUi()
     videoOuterLayout->addWidget(m_videoScrollArea);
     mainSplit->addWidget(videoContainer);
 
-    // Right: participants + chat vertical splitter
+    // 右侧参会者与聊天分割区域。
     auto *rightSplit = new QSplitter(Qt::Vertical, mainSplit);
     rightSplit->setHandleWidth(4);
     rightSplit->setStyleSheet(
@@ -99,11 +103,15 @@ void MeetingWindow::setupUi()
     mainSplit->addWidget(rightSplit);
     mainSplit->setSizes({900, 320});
 
-    // Bottom toolbar
+    // 底部工具栏。
     m_toolBar = new ToolBarPanel(this);
     root->addWidget(m_toolBar);
 }
 
+/**
+ * @brief 创建顶部栏。
+ * @return 顶部栏。
+ */
 QWidget* MeetingWindow::makeTopBar()
 {
     auto *bar = new QWidget(this);
@@ -136,8 +144,8 @@ QWidget* MeetingWindow::makeTopBar()
     row->addWidget(m_copyBtn);
     row->addStretch();
 
-    // Device menu
-    auto *deviceBtn = new QPushButton("\u8bbe\u5907", bar);
+    // 设备切换菜单。
+    auto *deviceBtn = new QPushButton("设备", bar);
     deviceBtn->setStyleSheet(
         "QPushButton { background: #2A2A3E; color: #8888A8;"
         "  border: none; border-radius: 6px; padding: 4px 14px; font-size: 13px; }"

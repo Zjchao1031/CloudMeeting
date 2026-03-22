@@ -1,3 +1,7 @@
+/**
+ * @file VideoDecoder.cpp
+ * @brief 实现视频解码器封装类。
+ */
 #include "media/codec/VideoDecoder.h"
 
 VideoDecoder::VideoDecoder() {}
@@ -14,5 +18,5 @@ void VideoDecoder::close() { m_opened = false; }
 QImage VideoDecoder::decode(const QByteArray &h264Data)
 {
     Q_UNUSED(h264Data)
-    return {}; // TODO: FFmpeg H.264 解码
+    return {}; // 待实现：FFmpeg H.264 解码。
 }

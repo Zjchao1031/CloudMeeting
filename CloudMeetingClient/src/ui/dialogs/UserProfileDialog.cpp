@@ -1,3 +1,7 @@
+/**
+ * @file UserProfileDialog.cpp
+ * @brief 实现用户资料编辑对话框。
+ */
 #include "ui/dialogs/UserProfileDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -8,6 +12,12 @@
 #include <QLabel>
 #include <QValidator>
 
+/**
+ * @brief 将头像裁剪为圆形图像。
+ * @param[in] src 原始头像图像。
+ * @param[in] size 输出图像边长尺寸，单位：像素。
+ * @return 裁剪后的圆形头像图像。
+ */
 static QPixmap makeCircularPixmap(const QPixmap &src, int size)
 {
     QPixmap scaled = src.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -22,17 +32,22 @@ static QPixmap makeCircularPixmap(const QPixmap &src, int size)
     return result;
 }
 
+/**
+ * @brief 生成默认头像图像。
+ * @param[in] size 头像边长尺寸，单位：像素。
+ * @return 生成的默认头像图像。
+ */
 static QPixmap makeDefaultAvatar(int size)
 {
     QPixmap pix(size, size);
     pix.fill(Qt::transparent);
     QPainter p(&pix);
     p.setRenderHint(QPainter::Antialiasing);
-    // Circle background
+    // 绘制圆形背景。
     p.setBrush(QColor("#363650"));
     p.setPen(Qt::NoPen);
     p.drawEllipse(0, 0, size, size);
-    // Person icon
+    // 绘制人像图标。
     p.setBrush(QColor("#8888A8"));
     int headR = size / 5;
     p.drawEllipse(size/2 - headR, size/5, headR*2, headR*2);

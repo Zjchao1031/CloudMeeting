@@ -1,12 +1,37 @@
 #pragma once
 #include <QByteArray>
 
-// 视频采集策略接口（策略模式抽象基类）
+/**
+ * @file IVideoCaptureStrategy.h
+ * @brief 声明视频采集策略抽象接口。
+ */
+
+/**
+ * @class IVideoCaptureStrategy
+ * @brief 定义视频采集策略模式的统一接口。
+ */
 class IVideoCaptureStrategy
 {
 public:
+    /**
+     * @brief 析构视频采集策略接口。
+     */
     virtual ~IVideoCaptureStrategy() = default;
+
+    /**
+     * @brief 启动视频采集。
+     * @return 若成功启动采集则返回 `true`，否则返回 `false`。
+     */
     virtual bool start() = 0;
+
+    /**
+     * @brief 停止视频采集。
+     */
     virtual void stop()  = 0;
+
+    /**
+     * @brief 查询采集任务是否正在运行。
+     * @return 若采集任务处于运行状态则返回 `true`，否则返回 `false`。
+     */
     virtual bool isRunning() const = 0;
 };

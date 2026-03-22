@@ -1,3 +1,7 @@
+/**
+ * @file UserProfileService.cpp
+ * @brief 实现用户资料持久化服务。
+ */
 #include "domain/service/UserProfileService.h"
 #include <QStandardPaths>
 #include <QSettings>

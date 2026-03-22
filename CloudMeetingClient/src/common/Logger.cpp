@@ -1,3 +1,7 @@
+/**
+ * @file Logger.cpp
+ * @brief 实现日志输出工具类。
+ */
 #include "common/Logger.h"
 #include <QDebug>
 

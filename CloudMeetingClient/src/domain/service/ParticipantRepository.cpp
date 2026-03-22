@@ -1,3 +1,7 @@
+/**
+ * @file ParticipantRepository.cpp
+ * @brief 实现参会者数据仓库。
+ */
 #include "domain/service/ParticipantRepository.h"
 #include <algorithm>
 

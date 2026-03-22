@@ -1,3 +1,7 @@
+/**
+ * @file MainWindow.cpp
+ * @brief 实现客户端主窗口逻辑。
+ */
 #include "ui/MainWindow.h"
 #include "ui/MeetingWindow.h"
 #include "ui/dialogs/UserProfileDialog.h"
@@ -18,6 +22,11 @@
 #include <QEvent>
 #include <QMouseEvent>
 
+/**
+ * @brief 生成默认头像图像。
+ * @param[in] size 头像边长尺寸，单位：像素。
+ * @return 生成的默认头像图像。
+ */
 static QPixmap makeDefaultAvatar(int size)
 {
     QPixmap pix(size, size);
@@ -33,6 +42,12 @@ static QPixmap makeDefaultAvatar(int size)
     return pix;
 }
 
+/**
+ * @brief 将头像裁剪为圆形图像。
+ * @param[in] src 原始头像图像。
+ * @param[in] size 输出图像边长尺寸，单位：像素。
+ * @return 裁剪后的圆形头像图像。
+ */
 static QPixmap makeCircularPixmap(const QPixmap &src, int size)
 {
     QPixmap scaled = src.scaled(size, size,
@@ -66,9 +81,7 @@ void MainWindow::setupUi()
     auto *stack = new QStackedWidget(this);
     setCentralWidget(stack);
 
-    // =========================================================
-    // Page 0: Main / home page
-    // =========================================================
+    // 首页内容页。
     auto *mainPage = new QWidget(stack);
     mainPage->setStyleSheet("background: #1E1E2E;");
 
@@ -76,7 +89,7 @@ void MainWindow::setupUi()
     pageLayout->setContentsMargins(0, 0, 0, 0);
     pageLayout->setSpacing(0);
 
-    // ── Top bar ──
+    // 顶部栏区域。
     auto *topBar = new QWidget(mainPage);
     topBar->setFixedHeight(60);
     topBar->setStyleSheet("background: #16162A; border-bottom: 1px solid #2A2A3E;");
@@ -84,14 +97,14 @@ void MainWindow::setupUi()
     topBarLayout->setContentsMargins(20, 0, 20, 0);
     topBarLayout->setSpacing(0);
 
-    // App name left
+    // 左侧应用名称。
     auto *appNameLabel = new QLabel("CloudMeeting", topBar);
     appNameLabel->setStyleSheet(
         "color: #4F8EF7; font-size: 16px; font-weight: 700; letter-spacing: 1px;");
     topBarLayout->addWidget(appNameLabel);
     topBarLayout->addStretch();
 
-    // User avatar + nickname (right) — 使用 QWidget + eventFilter 处理点击
+    // 右侧用户头像与昵称区域，使用事件过滤处理点击。
     m_userContainer = new QWidget(topBar);
     m_userContainer->setStyleSheet(
         "QWidget#userContainer { background: transparent; border-radius: 8px; }"
@@ -123,7 +136,7 @@ void MainWindow::setupUi()
 
     pageLayout->addWidget(topBar);
 
-    // ── Center hero ──
+    // 中央主展示区域。
     auto *hero = new QWidget(mainPage);
     hero->setStyleSheet("background: transparent;");
     auto *heroLayout = new QVBoxLayout(hero);
@@ -131,7 +144,7 @@ void MainWindow::setupUi()
     heroLayout->setSpacing(0);
     heroLayout->setAlignment(Qt::AlignCenter);
 
-    // Logo
+    // 应用图标。
     QPixmap logoPix(80, 80);
     logoPix.fill(Qt::transparent);
     {
@@ -140,15 +153,15 @@ void MainWindow::setupUi()
         lp.setBrush(QColor("#4F8EF7"));
         lp.setPen(Qt::NoPen);
         lp.drawRoundedRect(0, 0, 80, 80, 20, 20);
-        // Camera body
+        // 摄像机主体。
         lp.setBrush(Qt::white);
         lp.drawRoundedRect(8, 24, 40, 30, 6, 6);
-        // Lens ring
+        // 镜头部分。
         lp.setBrush(QColor("#4F8EF7"));
         lp.drawEllipse(17, 29, 20, 20);
         lp.setBrush(Qt::white);
         lp.drawEllipse(22, 34, 10, 10);
-        // Viewfinder
+        // 取景器部分。
         QPolygon tri;
         tri << QPoint(52, 28) << QPoint(70, 20) << QPoint(70, 58) << QPoint(52, 50);
         lp.setBrush(Qt::white);
@@ -160,7 +173,7 @@ void MainWindow::setupUi()
     heroLayout->addWidget(logoLabel);
     heroLayout->addSpacing(20);
 
-    // Product name
+    // 产品名称与标语。
     auto *productName = new QLabel("Cloud Meeting", hero);
     productName->setAlignment(Qt::AlignCenter);
     productName->setStyleSheet(
@@ -175,7 +188,7 @@ void MainWindow::setupUi()
     heroLayout->addWidget(tagline);
     heroLayout->addSpacing(48);
 
-    // Buttons
+    // 主操作按钮区域。
     auto *btnBox = new QWidget(hero);
     btnBox->setStyleSheet("background: transparent;");
     auto *btnLayout = new QVBoxLayout(btnBox);
@@ -203,9 +216,7 @@ void MainWindow::setupUi()
     connect(createBtn, &QPushButton::clicked, this, &MainWindow::onCreateMeetingClicked);
     connect(joinBtn,   &QPushButton::clicked, this, &MainWindow::onJoinMeetingClicked);
 
-    // =========================================================
-    // Page 1: Meeting window
-    // =========================================================
+    // 会议进行页面。
     m_meetingWindow = new MeetingWindow(stack);
     stack->addWidget(m_meetingWindow);  // index 1
 
@@ -224,7 +235,7 @@ void MainWindow::onCreateMeetingClicked()
     CreateMeetingDialog dlg(this);
     if (dlg.exec() != QDialog::Accepted) return;
 
-    // Switch to meeting window (mock — no real network yet)
+    // 切换到会议页面（当前为界面演示流程）。
     auto *stack = qobject_cast<QStackedWidget*>(centralWidget());
     if (stack) stack->setCurrentIndex(1);
 }
@@ -240,7 +251,7 @@ void MainWindow::onJoinMeetingClicked()
         return;
     }
 
-    // Switch to meeting window (mock)
+    // 切换到会议页面（当前为界面演示流程）。
     auto *stack = qobject_cast<QStackedWidget*>(centralWidget());
     if (stack) stack->setCurrentIndex(1);
 }

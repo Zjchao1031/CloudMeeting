@@ -1,3 +1,7 @@
+/**
+ * @file ParticipantListWidget.cpp
+ * @brief 实现参会者列表组件。
+ */
 #include "ui/widgets/ParticipantListWidget.h"
 #include <QScrollArea>
 #include <QLabel>
@@ -5,6 +9,13 @@
 #include <QPainter>
 #include <QPainterPath>
 
+/**
+ * @brief 生成参会者头像占位图。
+ * @param[in] initial 头像显示用的首字符文本。
+ * @param[in] size 头像边长尺寸，单位：像素。
+ * @param[in] isHost 标识是否为主持人。
+ * @return 生成的圆形头像图像。
+ */
 static QPixmap makeAvatarPix(const QString &initial, int size, bool isHost)
 {
     QPixmap pix(size, size);
@@ -31,7 +42,7 @@ ParticipantListWidget::ParticipantListWidget(QWidget *parent)
     outerLayout->setContentsMargins(0, 0, 0, 0);
     outerLayout->setSpacing(0);
 
-    // Header
+    // 顶部标题区域。
     auto *header = new QLabel("参会人员", this);
     header->setStyleSheet(
         "color: #8888A8; font-size: 12px; font-weight: 600;"
@@ -39,7 +50,7 @@ ParticipantListWidget::ParticipantListWidget(QWidget *parent)
     );
     outerLayout->addWidget(header);
 
-    // Scroll area
+    // 列表滚动区域。
     auto *scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -74,14 +85,14 @@ void ParticipantListWidget::refresh()
 
 void ParticipantListWidget::buildList()
 {
-    // Remove old items (keep stretch at end)
+    // 移除旧列表项，保留末尾弹性项。
     while (m_listLayout->count() > 1) {
         auto *item = m_listLayout->takeAt(0);
         if (item->widget()) delete item->widget();
         delete item;
     }
 
-    // Sort: host first, rest by nickname
+    // 按主持人优先、昵称升序排序。
     QList<ParticipantInfo> sorted = m_participants;
     std::stable_sort(sorted.begin(), sorted.end(), [](const ParticipantInfo &a, const ParticipantInfo &b) {
         if (a.isHost != b.isHost) return a.isHost > b.isHost;
@@ -106,13 +117,13 @@ QWidget* ParticipantListWidget::makeItem(const ParticipantInfo &info)
     row->setContentsMargins(12, 6, 12, 6);
     row->setSpacing(10);
 
-    // Avatar
+    // 头像区域。
     auto *avatarLabel = new QLabel(item);
     avatarLabel->setFixedSize(36, 36);
     avatarLabel->setPixmap(makeAvatarPix(info.nickname, 36, info.isHost));
     row->addWidget(avatarLabel);
 
-    // Name + badge
+    // 昵称与主持人标识区域。
     auto *nameCol = new QVBoxLayout;
     nameCol->setSpacing(2);
     auto *nameRow = new QHBoxLayout;
@@ -136,7 +147,7 @@ QWidget* ParticipantListWidget::makeItem(const ParticipantInfo &info)
 
     row->addStretch();
 
-    // Status icons
+    // 媒体状态图标区域。
     auto *micLabel = new QLabel(item);
     micLabel->setText(info.micOn ? "🎤" : "🔇");
     micLabel->setStyleSheet(info.micOn

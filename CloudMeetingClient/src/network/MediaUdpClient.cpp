@@ -1,3 +1,7 @@
+/**
+ * @file MediaUdpClient.cpp
+ * @brief 实现 UDP 媒体传输客户端。
+ */
 #include "network/MediaUdpClient.h"
 
 MediaUdpClient::MediaUdpClient(QObject *parent)
@@ -28,7 +32,7 @@ void MediaUdpClient::sendVideoFrameFragments(quint32 userId, const QByteArray &h
 {
     Q_UNUSED(userId)
     Q_UNUSED(isCamera)
-    // TODO: 分片逻辑
+    // 待实现：补充分片发送逻辑。
     m_videoUdp.writeDatagram(h264Data, QHostAddress(m_serverHost), m_videoPort);
 }
 
@@ -38,7 +42,7 @@ void MediaUdpClient::onAudioDatagram()
         QByteArray data;
         data.resize(int(m_audioUdp.pendingDatagramSize()));
         m_audioUdp.readDatagram(data.data(), data.size());
-        // TODO: 解析包头取 userId
+        // 待实现：解析包头并提取 userId。
         emit audioDataReceived(0, data);
     }
 }
@@ -49,7 +53,7 @@ void MediaUdpClient::onVideoDatagram()
         QByteArray data;
         data.resize(int(m_videoUdp.pendingDatagramSize()));
         m_videoUdp.readDatagram(data.data(), data.size());
-        // TODO: 解析包头取 userId / isCamera
+        // 待实现：解析包头并提取 userId 与视频来源标记。
         emit videoDataReceived(0, data, true);
     }
 }

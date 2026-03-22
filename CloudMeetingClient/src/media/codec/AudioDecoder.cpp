@@ -1,3 +1,7 @@
+/**
+ * @file AudioDecoder.cpp
+ * @brief 实现音频解码器封装类。
+ */
 #include "media/codec/AudioDecoder.h"
 
 AudioDecoder::AudioDecoder() {}
@@ -15,5 +19,5 @@ void AudioDecoder::close() { m_opened = false; }
 QByteArray AudioDecoder::decode(const QByteArray &opusData)
 {
     Q_UNUSED(opusData)
-    return {}; // TODO: FFmpeg Opus 解码
+    return {}; // 待实现：FFmpeg Opus 解码。
 }
