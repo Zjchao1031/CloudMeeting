@@ -6,6 +6,8 @@
  * @brief 声明媒体能力调度引擎。
  */
 
+class IVideoCaptureStrategy;
+
 /**
  * @class MediaEngine
  * @brief 负责统一管理摄像头采集、屏幕共享与音量控制。

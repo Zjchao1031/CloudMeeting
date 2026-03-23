@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QPainter>
+#include <QPainterPath>
 #include <QStackedWidget>
 #include <QFrame>
 #include <QApplication>
@@ -23,26 +24,6 @@
 #include <QMouseEvent>
 
 /**
- * @brief 生成默认头像图像。
- * @param[in] size 头像边长尺寸，单位：像素。
- * @return 生成的默认头像图像。
- */
-static QPixmap makeDefaultAvatar(int size)
-{
-    QPixmap pix(size, size);
-    pix.fill(Qt::transparent);
-    QPainter p(&pix);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setBrush(QColor("#363650"));
-    p.setPen(Qt::NoPen);
-    p.drawEllipse(0, 0, size, size);
-    p.setBrush(QColor("#8888A8"));
-    int headR = size / 5;
-    p.drawEllipse(size/2 - headR, size/5, headR*2, headR*2);
-    return pix;
-}
-
-/**
  * @brief 将头像裁剪为圆形图像。
  * @param[in] src 原始头像图像。
  * @param[in] size 输出图像边长尺寸，单位：像素。
@@ -50,23 +31,27 @@ static QPixmap makeDefaultAvatar(int size)
  */
 static QPixmap makeCircularPixmap(const QPixmap &src, int size)
 {
+    if (src.isNull()) return QPixmap();
     QPixmap scaled = src.scaled(size, size,
         Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
     QPixmap result(size, size);
     result.fill(Qt::transparent);
     QPainter p(&result);
     p.setRenderHint(QPainter::Antialiasing);
-    p.setClipRegion(QRegion(0, 0, size, size, QRegion::Ellipse));
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+    QPainterPath clipPath;
+    clipPath.addEllipse(QRectF(0.0, 0.0, size, size));
+    p.setClipPath(clipPath);
     int ox = (scaled.width()  - size) / 2;
     int oy = (scaled.height() - size) / 2;
-    p.drawPixmap(-ox, -oy, scaled);
+    p.drawPixmap(QRect(0, 0, size, size), scaled, QRect(ox, oy, size, size));
     return result;
 }
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    m_avatar = makeDefaultAvatar(36);
+    m_avatar = QPixmap(":/avatars/default.jpg");
     setupUi();
 }
 

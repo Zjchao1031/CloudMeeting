@@ -3,6 +3,7 @@ project(CloudMeetingClient LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Multimedia Network)
 
@@ -81,6 +82,7 @@ set(CLIENT_SOURCES
 qt_add_executable(CloudMeetingClient
     WIN32
     ${CLIENT_SOURCES}
+    avatars.qrc
 )
 
 target_link_libraries(CloudMeetingClient

@@ -20,50 +20,28 @@
  */
 static QPixmap makeCircularPixmap(const QPixmap &src, int size)
 {
+    if (src.isNull()) return QPixmap();
     QPixmap scaled = src.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
     QPixmap result(size, size);
     result.fill(Qt::transparent);
     QPainter p(&result);
     p.setRenderHint(QPainter::Antialiasing);
-    p.setClipRegion(QRegion(0, 0, size, size, QRegion::Ellipse));
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+    QPainterPath clipPath;
+    clipPath.addEllipse(QRectF(0.0, 0.0, size, size));
+    p.setClipPath(clipPath);
     int ox = (scaled.width() - size) / 2;
     int oy = (scaled.height() - size) / 2;
-    p.drawPixmap(-ox, -oy, scaled);
+    p.drawPixmap(QRect(0, 0, size, size), scaled, QRect(ox, oy, size, size));
     return result;
-}
-
-/**
- * @brief 生成默认头像图像。
- * @param[in] size 头像边长尺寸，单位：像素。
- * @return 生成的默认头像图像。
- */
-static QPixmap makeDefaultAvatar(int size)
-{
-    QPixmap pix(size, size);
-    pix.fill(Qt::transparent);
-    QPainter p(&pix);
-    p.setRenderHint(QPainter::Antialiasing);
-    // 绘制圆形背景。
-    p.setBrush(QColor("#363650"));
-    p.setPen(Qt::NoPen);
-    p.drawEllipse(0, 0, size, size);
-    // 绘制人像图标。
-    p.setBrush(QColor("#8888A8"));
-    int headR = size / 5;
-    p.drawEllipse(size/2 - headR, size/5, headR*2, headR*2);
-    QPainterPath body;
-    body.moveTo(size * 0.15, size * 0.95);
-    body.cubicTo(size * 0.15, size * 0.65, size * 0.85, size * 0.65, size * 0.85, size * 0.95);
-    p.drawPath(body);
-    return pix;
 }
 
 UserProfileDialog::UserProfileDialog(QWidget *parent)
     : QDialog(parent)
 {
     setupUi();
-    m_avatarPixmap = makeDefaultAvatar(80);
-    m_avatarLabel->setPixmap(m_avatarPixmap);
+    m_avatarPixmap = QPixmap(":/avatars/default.jpg");
+    m_avatarLabel->setPixmap(makeCircularPixmap(m_avatarPixmap, 80));
 }
 
 QString UserProfileDialog::nickname() const
@@ -84,7 +62,7 @@ void UserProfileDialog::setNickname(const QString &name)
 void UserProfileDialog::setAvatar(const QPixmap &pix)
 {
     m_avatarPixmap = pix;
-    m_avatarLabel->setPixmap(makeCircularPixmap(pix, 80));
+    m_avatarLabel->setPixmap(makeCircularPixmap(m_avatarPixmap, 80));
 }
 
 void UserProfileDialog::onSelectAvatarClicked()

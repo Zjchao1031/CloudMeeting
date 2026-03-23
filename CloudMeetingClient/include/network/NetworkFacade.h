@@ -7,6 +7,9 @@
  * @brief 声明网络访问门面类。
  */
 
+class SignalingClient;
+class MediaUdpClient;
+
 /**
  * @class NetworkFacade
  * @brief 对外统一提供会议相关的网络发送能力。
