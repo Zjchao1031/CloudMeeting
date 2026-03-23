@@ -10,7 +10,31 @@
 #include <QPainterPath>
 
 /**
- * @brief 生成参会者头像占位图。
+ * @brief 将 QImage 裁剪为圆形头像。
+ * @param[in] src 原始图像。
+ * @param[in] size 输出尺寸。
+ * @return 圆形头像 QPixmap。
+ */
+static QPixmap makeCircularAvatar(const QImage &src, int size)
+{
+    if (src.isNull()) return QPixmap();
+    QPixmap scaled = QPixmap::fromImage(src).scaled(
+        size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    QPixmap result(size, size);
+    result.fill(Qt::transparent);
+    QPainter p(&result);
+    p.setRenderHint(QPainter::Antialiasing);
+    QPainterPath clip;
+    clip.addEllipse(QRectF(0, 0, size, size));
+    p.setClipPath(clip);
+    int ox = (scaled.width()  - size) / 2;
+    int oy = (scaled.height() - size) / 2;
+    p.drawPixmap(0, 0, size, size, scaled, ox, oy, size, size);
+    return result;
+}
+
+/**
+ * @brief 生成参会者头像占位图（无头像时使用首字符）。
  * @param[in] initial 头像显示用的首字符文本。
  * @param[in] size 头像边长尺寸，单位：像素。
  * @param[in] isHost 标识是否为主持人。
@@ -31,7 +55,8 @@ static QPixmap makeAvatarPix(const QString &initial, int size, bool isHost)
     f.setPixelSize(size / 2);
     f.setBold(true);
     p.setFont(f);
-    p.drawText(QRect(0, 0, size, size), Qt::AlignCenter, initial.isEmpty() ? "?" : initial.left(1).toUpper());
+    p.drawText(QRect(0, 0, size, size), Qt::AlignCenter,
+               initial.isEmpty() ? "?" : initial.left(1).toUpper());
     return pix;
 }
 
@@ -65,21 +90,11 @@ ParticipantListWidget::ParticipantListWidget(QWidget *parent)
 
     scroll->setWidget(container);
     outerLayout->addWidget(scroll);
-
-    loadMockData();
 }
 
-void ParticipantListWidget::loadMockData()
+void ParticipantListWidget::updateFromParticipants(const QList<Participant> &participants)
 {
-    m_participants.clear();
-    m_participants << ParticipantInfo{"u001", "张三（主持人）", true,  true,  true};
-    m_participants << ParticipantInfo{"u002", "李四",           false, true,  false};
-    m_participants << ParticipantInfo{"u003", "王五",           false, false, true};
-    buildList();
-}
-
-void ParticipantListWidget::refresh()
-{
+    m_participants = participants;
     buildList();
 }
 
@@ -92,19 +107,12 @@ void ParticipantListWidget::buildList()
         delete item;
     }
 
-    // 按主持人优先、昵称升序排序。
-    QList<ParticipantInfo> sorted = m_participants;
-    std::stable_sort(sorted.begin(), sorted.end(), [](const ParticipantInfo &a, const ParticipantInfo &b) {
-        if (a.isHost != b.isHost) return a.isHost > b.isHost;
-        return a.nickname < b.nickname;
-    });
-
-    for (const auto &info : sorted) {
-        m_listLayout->insertWidget(m_listLayout->count() - 1, makeItem(info));
+    for (const auto &p : m_participants) {
+        m_listLayout->insertWidget(m_listLayout->count() - 1, makeItem(p));
     }
 }
 
-QWidget* ParticipantListWidget::makeItem(const ParticipantInfo &info)
+QWidget* ParticipantListWidget::makeItem(const Participant &p)
 {
     auto *item = new QWidget(this);
     item->setFixedHeight(52);
@@ -117,10 +125,14 @@ QWidget* ParticipantListWidget::makeItem(const ParticipantInfo &info)
     row->setContentsMargins(12, 6, 12, 6);
     row->setSpacing(10);
 
-    // 头像区域。
+    // 头像区域：优先使用真实头像，否则使用首字符占位。
     auto *avatarLabel = new QLabel(item);
     avatarLabel->setFixedSize(36, 36);
-    avatarLabel->setPixmap(makeAvatarPix(info.nickname, 36, info.isHost));
+    if (!p.avatar.isNull()) {
+        avatarLabel->setPixmap(makeCircularAvatar(p.avatar, 36));
+    } else {
+        avatarLabel->setPixmap(makeAvatarPix(p.nickname, 36, p.isHost));
+    }
     row->addWidget(avatarLabel);
 
     // 昵称与主持人标识区域。
@@ -129,11 +141,11 @@ QWidget* ParticipantListWidget::makeItem(const ParticipantInfo &info)
     auto *nameRow = new QHBoxLayout;
     nameRow->setSpacing(6);
 
-    auto *nameLabel = new QLabel(info.nickname, item);
+    auto *nameLabel = new QLabel(p.nickname, item);
     nameLabel->setStyleSheet("color: #E8E8F0; font-size: 13px; font-weight: 500;");
     nameRow->addWidget(nameLabel);
 
-    if (info.isHost) {
+    if (p.isHost) {
         auto *badge = new QLabel("主持人", item);
         badge->setStyleSheet(
             "background: rgba(79,142,247,0.18); color: #4F8EF7;"
@@ -149,18 +161,18 @@ QWidget* ParticipantListWidget::makeItem(const ParticipantInfo &info)
 
     // 媒体状态图标区域。
     auto *micLabel = new QLabel(item);
-    micLabel->setText(info.micOn ? "🎤" : "🔇");
-    micLabel->setStyleSheet(info.micOn
+    micLabel->setText(p.micOn ? "🎤" : "🔇");
+    micLabel->setStyleSheet(p.micOn
         ? "color: #4CAF82; font-size: 14px;"
         : "color: #8888A8; font-size: 14px;");
-    micLabel->setToolTip(info.micOn ? "麦克风已开启" : "麦克风已关闭");
+    micLabel->setToolTip(p.micOn ? "麦克风已开启" : "麦克风已关闭");
 
     auto *camLabel = new QLabel(item);
-    camLabel->setText(info.cameraOn ? "📷" : "📵");
-    camLabel->setStyleSheet(info.cameraOn
+    camLabel->setText(p.cameraOn ? "📷" : "📵");
+    camLabel->setStyleSheet(p.cameraOn
         ? "color: #4CAF82; font-size: 14px;"
         : "color: #8888A8; font-size: 14px;");
-    camLabel->setToolTip(info.cameraOn ? "摄像头已开启" : "摄像头已关闭");
+    camLabel->setToolTip(p.cameraOn ? "摄像头已开启" : "摄像头已关闭");
 
     row->addWidget(micLabel);
     row->addWidget(camLabel);

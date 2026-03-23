@@ -1,5 +1,8 @@
 #pragma once
 #include "domain/model/RoomInfo.h"
+#include "domain/model/Participant.h"
+#include <QObject>
+#include <QString>
 
 /**
  * @file MeetingController.h
@@ -16,6 +19,7 @@ struct CreateRoomOptions
     bool    hasPassword = false; ///< 是否启用会议密码。
     QString password;          ///< 会议密码内容。
     QString nickname;          ///< 创建者昵称。
+    QString avatarBase64;      ///< 创建者头像 Base64。
 };
 
 /**
@@ -27,27 +31,49 @@ struct JoinRoomOptions
     QString roomId;            ///< 目标会议房间号。
     QString password;          ///< 房间密码。
     QString nickname;          ///< 加入会议时使用的昵称。
+    QString avatarBase64;      ///< 加入者头像 Base64。
 };
 
 class NetworkFacade;
+class ParticipantRepository;
+
+/**
+ * @enum MeetingState
+ * @brief 会议控制器状态机枚举。
+ */
+enum class MeetingState
+{
+    Idle,          ///< 空闲状态，未加入任何会议。
+    Connecting,    ///< 正在连接服务器或等待响应。
+    InMeeting,     ///< 已在会议中。
+    Reconnecting   ///< 断线重连中。
+};
 
 /**
  * @class MeetingController
- * @brief 负责封装会议创建、加入和离开等业务流程。
+ * @brief 负责封装会议创建、加入和离开等业务流程，管理会议状态机。
  */
-class MeetingController
+class MeetingController : public QObject
 {
+    Q_OBJECT
 public:
     /**
      * @brief 构造会议控制器。
+     * @param[in] parent 父对象指针。
      */
-    MeetingController();
+    explicit MeetingController(QObject *parent = nullptr);
 
     /**
      * @brief 设置底层网络门面对象。
      * @param[in] facade 负责实际网络通信的门面指针。
      */
     void setNetworkFacade(NetworkFacade *facade);
+
+    /**
+     * @brief 设置参会者仓库。
+     * @param[in] repo 参会者数据仓库指针。
+     */
+    void setParticipantRepository(ParticipantRepository *repo);
 
     /**
      * @brief 发起创建会议请求。
@@ -71,7 +97,78 @@ public:
      */
     void onRoomClosed();
 
+    /**
+     * @brief 处理新成员加入事件。
+     * @param[in] p 新加入的参会者信息。
+     */
+    void onMemberJoin(const Participant &p);
+
+    /**
+     * @brief 处理成员离开事件。
+     * @param[in] userId 离开的成员用户标识。
+     */
+    void onMemberLeave(const QString &userId);
+
+    /**
+     * @brief 处理成员媒体状态同步事件。
+     * @param[in] userId 目标成员用户标识。
+     * @param[in] camera 摄像头开关状态。
+     * @param[in] mic 麦克风开关状态。
+     * @param[in] screen 屏幕共享开关状态。
+     */
+    void onMediaStateSync(const QString &userId, bool camera, bool mic, bool screen);
+
+    /**
+     * @brief 获取当前会议状态。
+     * @return 当前状态机状态。
+     */
+    MeetingState state() const;
+
+    /**
+     * @brief 获取当前房间信息。
+     * @return 当前房间信息的常量引用。
+     */
+    const RoomInfo &currentRoom() const;
+
+signals:
+    /**
+     * @brief 会议状态发生变更时发出该信号。
+     * @param[in] newState 变更后的状态。
+     */
+    void stateChanged(MeetingState newState);
+
+    /**
+     * @brief 成功进入会议时发出该信号。
+     * @param[in] room 当前会议房间信息。
+     */
+    void meetingEntered(const RoomInfo &room);
+
+    /**
+     * @brief 会议结束或离开时发出该信号。
+     */
+    void meetingExited();
+
+    /**
+     * @brief 会议被主持人关闭时发出该信号。
+     */
+    void roomClosed();
+
+    /**
+     * @brief 业务操作出错时发出该信号。
+     * @param[in] title 错误标题。
+     * @param[in] message 错误详情。
+     */
+    void errorOccurred(const QString &title, const QString &message);
+
 private:
-    NetworkFacade *m_network = nullptr; ///< 当前绑定的网络通信门面。
-    RoomInfo       m_currentRoom;       ///< 当前会议房间信息缓存。
+    /**
+     * @brief 切换状态机状态。
+     * @param[in] s 目标状态。
+     */
+    void setState(MeetingState s);
+
+    MeetingState            m_state   = MeetingState::Idle; ///< 当前状态机状态。
+    NetworkFacade          *m_network = nullptr;            ///< 当前绑定的网络通信门面。
+    ParticipantRepository  *m_repo    = nullptr;            ///< 参会者数据仓库。
+    RoomInfo                m_currentRoom;                  ///< 当前会议房间信息缓存。
 };

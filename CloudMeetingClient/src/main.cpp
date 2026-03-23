@@ -3,6 +3,7 @@
  * @brief 定义客户端程序入口。
  */
 #include "app/Application.h"
+#include "app/AppContext.h"
 #include "ui/MainWindow.h"
 #include "ui/AppStyle.h"
 #include <QApplication>
@@ -20,6 +21,9 @@ int main(int argc, char *argv[])
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
     QApplication app(argc, argv);
+
+    // 初始化应用上下文与业务服务。
+    AppContext::instance().setup();
 
     // 应用全局深色主题。
     app.setStyleSheet(AppStyle::GLOBAL_QSS);

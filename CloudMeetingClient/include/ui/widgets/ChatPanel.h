@@ -10,17 +10,6 @@
  */
 
 /**
- * @struct ChatMessageData
- * @brief 描述聊天面板中展示用的消息数据。
- */
-struct ChatMessageData {
-    QString userId;           ///< 发送者用户标识。
-    QString nickname;         ///< 发送者显示昵称。
-    QString content;          ///< 消息文本内容。
-    bool    isSelf = false;   ///< 是否为当前用户发送的消息。
-};
-
-/**
  * @class ChatPanel
  * @brief 提供消息展示与发送输入能力的聊天侧边栏。
  */
@@ -43,9 +32,9 @@ public:
     void appendMessage(const QString &userId, const QString &nickname, const QString &content);
 
     /**
-     * @brief 加载用于界面演示的模拟聊天数据。
+     * @brief 清空所有聊天消息。
      */
-    void loadMockData();
+    void clearMessages();
 
 signals:
     /**
@@ -68,10 +57,11 @@ private:
 
     /**
      * @brief 根据消息数据创建单条消息气泡控件。
-     * @param[in] msg 待展示的消息数据。
+     * @param[in] nickname 发送者昵称。
+     * @param[in] content 消息内容。
      * @return 消息气泡控件指针。
      */
-    QWidget* makeBubble(const ChatMessageData &msg);
+    QWidget* makeBubble(const QString &nickname, const QString &content);
 
     /**
      * @brief 将消息滚动区域滚动到最底部。

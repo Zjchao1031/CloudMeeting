@@ -1,6 +1,7 @@
 #pragma once
 #include <QString>
 #include <QImage>
+#include <QByteArray>
 
 /**
  * @file UserProfileService.h
@@ -43,12 +44,26 @@ public:
     QImage avatar() const;
 
     /**
-     * @brief 设置当前用户头像。
+     * @brief 设置当前用户头像（自动裁剪为 64x64 正方形）。
      * @param[in] img 待保存的头像图像。
      */
     void setAvatar(const QImage &img);
 
+    /**
+     * @brief 获取当前用户头像的 Base64 编码字符串。
+     * @return PNG 格式头像的 Base64 编码。
+     */
+    QString avatarBase64() const;
+
 private:
-    QString m_nickname; ///< 当前用户昵称。
-    QImage  m_avatar;   ///< 当前用户头像图像。
+    /**
+     * @brief 将头像裁剪为正方形并缩放至 64x64 像素。
+     * @param[in] src 原始头像图像。
+     * @return 裁剪缩放后的头像图像。
+     */
+    static QImage cropAndScale(const QImage &src);
+
+    QString m_nickname;      ///< 当前用户昵称。
+    QImage  m_avatar;        ///< 当前用户头像图像（64x64）。
+    QString m_avatarBase64;  ///< 头像的 Base64 编码缓存。
 };

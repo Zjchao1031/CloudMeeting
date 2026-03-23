@@ -8,6 +8,11 @@
 #include "ui/dialogs/CreateMeetingDialog.h"
 #include "ui/dialogs/JoinMeetingDialog.h"
 #include "ui/dialogs/ConfirmDialog.h"
+#include "app/AppContext.h"
+#include "domain/service/UserProfileService.h"
+#include "domain/service/MeetingController.h"
+#include "domain/service/ChatService.h"
+#include "domain/service/ParticipantRepository.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QWidget>
@@ -22,6 +27,7 @@
 #include <QTimer>
 #include <QEvent>
 #include <QMouseEvent>
+#include <QStyle>
 
 /**
  * @brief 将头像裁剪为圆形图像。
@@ -48,11 +54,26 @@ static QPixmap makeCircularPixmap(const QPixmap &src, int size)
     return result;
 }
 
+static void refreshWidgetStyle(QWidget *widget)
+{
+    if (widget == nullptr) return;
+    widget->style()->unpolish(widget);
+    widget->style()->polish(widget);
+    widget->update();
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    m_avatar = QPixmap(":/avatars/default.jpg");
+    auto &ctx = AppContext::instance();
+    m_profileSvc      = ctx.userProfileService();
+    m_meetingCtrl     = ctx.meetingController();
+    m_chatSvc         = ctx.chatService();
+    m_participantRepo = ctx.participantRepository();
+
     setupUi();
+    bindServices();
+    updateUserDisplay();
 }
 
 MainWindow::~MainWindow() {}
@@ -91,11 +112,25 @@ void MainWindow::setupUi()
 
     // 右侧用户头像与昵称区域，使用事件过滤处理点击。
     m_userContainer = new QWidget(topBar);
-    m_userContainer->setStyleSheet(
-        "QWidget#userContainer { background: transparent; border-radius: 8px; }"
-        "QWidget#userContainer:hover { background: rgba(255,255,255,0.07); }"
-    );
     m_userContainer->setObjectName("userContainer");
+    m_userContainer->setAttribute(Qt::WA_StyledBackground, true);
+    m_userContainer->setAttribute(Qt::WA_Hover, true);
+    m_userContainer->setProperty("active", false);
+    m_userContainer->setStyleSheet(
+        "QWidget#userContainer {"
+        " background-color: transparent;"
+        " border: none;"
+        " border-radius: 8px;"
+        "}"
+        "QWidget#userContainer:hover,"
+        "QWidget#userContainer[active=\"true\"] {"
+        " background-color: rgba(255,255,255,0.07);"
+        "}"
+        "QWidget#userContainer QLabel {"
+        " background-color: transparent;"
+        " border: none;"
+        "}"
+    );
     m_userContainer->setCursor(Qt::PointingHandCursor);
     m_userContainer->installEventFilter(this);
 
@@ -105,13 +140,16 @@ void MainWindow::setupUi()
 
     m_avatarLabel = new QLabel(m_userContainer);
     m_avatarLabel->setFixedSize(32, 32);
-    m_avatarLabel->setPixmap(makeCircularPixmap(m_avatar, 32));
+    m_avatarLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_avatarLabel->setStyleSheet("background: transparent;");
 
-    m_nicknameLabel = new QLabel(m_nickname, m_userContainer);
-    m_nicknameLabel->setStyleSheet("color: #E8E8F0; font-size: 14px;");
+    m_nicknameLabel = new QLabel(m_userContainer);
+    m_nicknameLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_nicknameLabel->setStyleSheet("background: transparent; color: #E8E8F0; font-size: 14px;");
 
     auto *chevron = new QLabel("\u25be", m_userContainer);
-    chevron->setStyleSheet("color: #8888A8; font-size: 11px;");
+    chevron->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    chevron->setStyleSheet("background: transparent; color: #8888A8; font-size: 11px;");
 
     userBtnLayout->addWidget(m_avatarLabel);
     userBtnLayout->addWidget(m_nicknameLabel);
@@ -205,14 +243,53 @@ void MainWindow::setupUi()
     m_meetingWindow = new MeetingWindow(stack);
     stack->addWidget(m_meetingWindow);  // index 1
 
+}
+
+void MainWindow::bindServices()
+{
+    // MeetingController 信号 -> MainWindow 槽。
+    connect(m_meetingCtrl, &MeetingController::meetingEntered,
+            this, &MainWindow::onMeetingEntered);
+    connect(m_meetingCtrl, &MeetingController::meetingExited,
+            this, &MainWindow::onMeetingExited);
+    connect(m_meetingCtrl, &MeetingController::roomClosed,
+            this, &MainWindow::onRoomClosed);
+    connect(m_meetingCtrl, &MeetingController::errorOccurred,
+            this, &MainWindow::onErrorOccurred);
+
+    // MeetingWindow 离开请求 -> MeetingController::leaveRoom。
     connect(m_meetingWindow, &MeetingWindow::leaveRequested,
-            this, &MainWindow::onLeaveRequested);
+            this, [this]() { m_meetingCtrl->leaveRoom(); });
+
+    // ParticipantRepository 变更 -> MeetingWindow 刷新参会者列表。
+    connect(m_participantRepo, &ParticipantRepository::participantsChanged,
+            m_meetingWindow, &MeetingWindow::onParticipantsChanged);
+
+    // ChatService 新消息 -> MeetingWindow 追加聊天消息。
+    connect(m_chatSvc, &ChatService::newMessageReceived,
+            m_meetingWindow, &MeetingWindow::onNewChatMessage);
+
+    // MeetingWindow 聊天发送 -> ChatService::sendMessage。
+    connect(m_meetingWindow, &MeetingWindow::chatMessageSent,
+            m_chatSvc, &ChatService::sendMessage);
+
+    // MeetingWindow 媒体状态切换 -> 暂用 Mock 输出（阶段三接入 NetworkFacade）。
+    connect(m_meetingWindow, &MeetingWindow::mediaStateChanged,
+            this, [](bool camera, bool mic, bool screen) {
+                Q_UNUSED(camera) Q_UNUSED(mic) Q_UNUSED(screen)
+                // 阶段三通过 NetworkFacade 发送 MEDIA_STATE。
+            });
 }
 
 void MainWindow::updateUserDisplay()
 {
-    m_nicknameLabel->setText(m_nickname);
-    m_avatarLabel->setPixmap(makeCircularPixmap(m_avatar, 32));
+    if (!m_profileSvc) return;
+    m_nicknameLabel->setText(m_profileSvc->nickname());
+    QImage avatarImg = m_profileSvc->avatar();
+    if (!avatarImg.isNull()) {
+        m_avatarLabel->setPixmap(makeCircularPixmap(
+            QPixmap::fromImage(avatarImg), 32));
+    }
 }
 
 void MainWindow::onCreateMeetingClicked()
@@ -220,9 +297,14 @@ void MainWindow::onCreateMeetingClicked()
     CreateMeetingDialog dlg(this);
     if (dlg.exec() != QDialog::Accepted) return;
 
-    // 切换到会议页面（当前为界面演示流程）。
-    auto *stack = qobject_cast<QStackedWidget*>(centralWidget());
-    if (stack) stack->setCurrentIndex(1);
+    CreateRoomOptions opts;
+    opts.maxMembers  = dlg.maxMembers();
+    opts.hasPassword = dlg.hasPassword();
+    opts.password    = dlg.password();
+    opts.nickname    = m_profileSvc->nickname();
+    opts.avatarBase64 = m_profileSvc->avatarBase64();
+
+    m_meetingCtrl->createRoom(opts);
 }
 
 void MainWindow::onJoinMeetingClicked()
@@ -236,37 +318,97 @@ void MainWindow::onJoinMeetingClicked()
         return;
     }
 
-    // 切换到会议页面（当前为界面演示流程）。
-    auto *stack = qobject_cast<QStackedWidget*>(centralWidget());
-    if (stack) stack->setCurrentIndex(1);
+    JoinRoomOptions opts;
+    opts.roomId      = roomId;
+    opts.password    = dlg.password();
+    opts.nickname    = m_profileSvc->nickname();
+    opts.avatarBase64 = m_profileSvc->avatarBase64();
+
+    m_meetingCtrl->joinRoom(opts);
 }
 
 void MainWindow::onOpenSettingsClicked()
 {
     UserProfileDialog dlg(this);
-    dlg.setNickname(m_nickname);
-    if (!m_avatar.isNull()) dlg.setAvatar(m_avatar);
+    dlg.setNickname(m_profileSvc->nickname());
+    QImage avatarImg = m_profileSvc->avatar();
+    if (!avatarImg.isNull()) {
+        dlg.setAvatar(QPixmap::fromImage(avatarImg));
+    }
 
     if (dlg.exec() == QDialog::Accepted) {
         QString nick = dlg.nickname();
-        if (!nick.isEmpty()) m_nickname = nick;
+        if (!nick.isEmpty()) {
+            m_profileSvc->setNickname(nick);
+        }
         QPixmap av = dlg.avatar();
-        if (!av.isNull()) m_avatar = av;
+        if (!av.isNull()) {
+            m_profileSvc->setAvatar(av.toImage());
+        }
+        m_profileSvc->save();
         updateUserDisplay();
     }
 }
 
-void MainWindow::onLeaveRequested()
+void MainWindow::onMeetingEntered(const RoomInfo &room)
 {
+    // 通知 MeetingWindow 设置房间信息。
+    m_meetingWindow->setRoomInfo(room);
+
+    // 切换到会议页面。
+    auto *stack = qobject_cast<QStackedWidget*>(centralWidget());
+    if (stack) stack->setCurrentIndex(1);
+}
+
+void MainWindow::onMeetingExited()
+{
+    // 清空聊天缓存。
+    m_chatSvc->clearMessages();
+
+    // 切换回主界面。
     auto *stack = qobject_cast<QStackedWidget*>(centralWidget());
     if (stack) stack->setCurrentIndex(0);
 }
 
+void MainWindow::onRoomClosed()
+{
+    m_chatSvc->clearMessages();
+    m_meetingWindow->showRoomClosedDialog();
+}
+
+void MainWindow::onErrorOccurred(const QString &title, const QString &message)
+{
+    ConfirmDialog::showError(title, message, this);
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (obj == m_userContainer && event->type() == QEvent::MouseButtonRelease) {
-        onOpenSettingsClicked();
-        return true;
+    if (obj == m_userContainer) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto *mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                m_userContainer->setProperty("active", true);
+                refreshWidgetStyle(m_userContainer);
+                return true;
+            }
+        }
+
+        if (event->type() == QEvent::MouseButtonRelease) {
+            auto *mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                m_userContainer->setProperty("active", true);
+                refreshWidgetStyle(m_userContainer);
+                onOpenSettingsClicked();
+                m_userContainer->setProperty("active", false);
+                refreshWidgetStyle(m_userContainer);
+                return true;
+            }
+        }
+
+        if (event->type() == QEvent::Leave && m_userContainer->property("active").toBool()) {
+            m_userContainer->setProperty("active", false);
+            refreshWidgetStyle(m_userContainer);
+        }
     }
     return QMainWindow::eventFilter(obj, event);
 }

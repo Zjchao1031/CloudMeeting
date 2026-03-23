@@ -15,6 +15,7 @@ struct ChatMessage
 {
     QString userId;          ///< 发送者用户标识。
     QString nickname;        ///< 发送者显示昵称。
+    QString avatarBase64;    ///< 发送者头像 Base64 编码字符串。
     QString content;         ///< 消息文本内容。
     qint64  timestamp = 0;   ///< 消息生成时间戳。
 };

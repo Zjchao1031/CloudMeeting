@@ -1,4 +1,5 @@
 #pragma once
+#include "domain/model/Participant.h"
 #include <QWidget>
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -7,19 +8,6 @@
  * @file ParticipantListWidget.h
  * @brief 声明参会者列表组件。
  */
-
-/**
- * @class ParticipantInfo
- * @brief 描述参会者列表中的展示信息。
- */
-class ParticipantInfo {
-public:
-    QString userId;          ///< 参会者用户标识。
-    QString nickname;        ///< 参会者显示昵称。
-    bool    isHost   = false; ///< 是否为主持人。
-    bool    cameraOn = false; ///< 摄像头是否开启。
-    bool    micOn    = false; ///< 麦克风是否开启。
-};
 
 /**
  * @class ParticipantListWidget
@@ -36,14 +24,10 @@ public:
     explicit ParticipantListWidget(QWidget *parent = nullptr);
 
     /**
-     * @brief 刷新参会者列表显示。
+     * @brief 根据业务层参会者数据刷新列表。
+     * @param[in] participants 已排序的参会者列表。
      */
-    void refresh();
-
-    /**
-     * @brief 加载用于界面演示的模拟参会者数据。
-     */
-    void loadMockData();
+    void updateFromParticipants(const QList<Participant> &participants);
 
 private:
     /**
@@ -53,11 +37,11 @@ private:
 
     /**
      * @brief 创建单个参会者条目控件。
-     * @param[in] info 待展示的参会者信息。
+     * @param[in] p 待展示的参会者数据。
      * @return 列表项控件指针。
      */
-    QWidget* makeItem(const ParticipantInfo &info);
+    QWidget* makeItem(const Participant &p);
 
-    QVBoxLayout            *m_listLayout   = nullptr; ///< 参会者列表布局。
-    QList<ParticipantInfo>  m_participants;           ///< 当前参会者展示数据。
+    QVBoxLayout      *m_listLayout   = nullptr; ///< 参会者列表布局。
+    QList<Participant> m_participants;           ///< 当前参会者展示数据。
 };

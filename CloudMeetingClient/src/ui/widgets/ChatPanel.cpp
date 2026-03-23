@@ -69,7 +69,6 @@ ChatPanel::ChatPanel(QWidget *parent)
     : QWidget(parent)
 {
     setupUi();
-    loadMockData();
 }
 
 void ChatPanel::setupUi()
@@ -136,30 +135,21 @@ void ChatPanel::setupUi()
         new InputKeyFilter([this]() { onSendClicked(); }, this));
 }
 
-void ChatPanel::loadMockData()
+void ChatPanel::clearMessages()
 {
-    appendMessage("u001", "\u5f20\u4e09",
-        "\u5927\u5bb6\u597d\uff0c\u6b22\u8fce\u53c2\u52a0\u672c\u6b21\u4f1a\u8bae\uff01");
-    appendMessage("u002", "\u674e\u56db",
-        "\u4f60\u597d\uff01\u6211\u5df2\u5c31\u7eea\u3002");
-    appendMessage("u003", "\u738b\u4e94",
-        "\u6536\u5230\uff0c\u6211\u8fd9\u8fb9\u7f51\u7edc\u6b63\u5e38\u3002");
-    appendMessage("u001", "\u5f20\u4e09",
-        "\u4eca\u5929\u4e3b\u8981\u8ba8\u8bba Q2 \u8ba1\u5212\uff0c\u9884\u8ba1 30 \u5206\u949f\u3002");
-    appendMessage("u002", "\u674e\u56db",
-        "\u597d\u7684\uff0c\u6211\u5df2\u7ecf\u51c6\u5907\u597d\u76f8\u5173\u6750\u6599\u4e86\u3002");
+    while (m_messagesLayout->count() > 1) {
+        auto *item = m_messagesLayout->takeAt(0);
+        if (item->widget()) delete item->widget();
+        delete item;
+    }
 }
 
 void ChatPanel::appendMessage(const QString &userId, const QString &nickname,
                               const QString &content)
 {
-    ChatMessageData msg;
-    msg.userId   = userId;
-    msg.nickname = nickname;
-    msg.content  = content;
-
+    Q_UNUSED(userId)
     int idx = m_messagesLayout->count() - 1; // 在尾部弹性项之前插入新消息。
-    m_messagesLayout->insertWidget(idx, makeBubble(msg));
+    m_messagesLayout->insertWidget(idx, makeBubble(nickname, content));
     QTimer::singleShot(0, this, &ChatPanel::scrollToBottom);
 }
 
@@ -182,7 +172,6 @@ void ChatPanel::onSendClicked()
         "QTextEdit:focus { border-color: #4F8EF7; }");
 
     emit messageSent(text);
-    appendMessage("self", "\u6211", text);
     m_inputEdit->clear();
 }
 
@@ -192,7 +181,7 @@ void ChatPanel::scrollToBottom()
     sb->setValue(sb->maximum());
 }
 
-QWidget* ChatPanel::makeBubble(const ChatMessageData &msg)
+QWidget* ChatPanel::makeBubble(const QString &nickname, const QString &content)
 {
     auto *bubble = new QWidget(m_messagesContainer);
     bubble->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
@@ -205,7 +194,7 @@ QWidget* ChatPanel::makeBubble(const ChatMessageData &msg)
     // 头像区域。
     auto *avatarLabel = new QLabel(bubble);
     avatarLabel->setFixedSize(40, 40);
-    avatarLabel->setPixmap(makeAvatarPix(msg.nickname, 40));
+    avatarLabel->setPixmap(makeAvatarPix(nickname, 40));
     avatarLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     row->addWidget(avatarLabel, 0, Qt::AlignTop);
 
@@ -214,11 +203,11 @@ QWidget* ChatPanel::makeBubble(const ChatMessageData &msg)
     col->setSpacing(4);
     col->setContentsMargins(0, 0, 0, 0);
 
-    auto *nickLabel = new QLabel(msg.nickname, bubble);
+    auto *nickLabel = new QLabel(nickname, bubble);
     nickLabel->setStyleSheet("color: #4F8EF7; font-size: 12px; font-weight: 600;");
     col->addWidget(nickLabel);
 
-    auto *contentLabel = new QLabel(msg.content, bubble);
+    auto *contentLabel = new QLabel(content, bubble);
     contentLabel->setWordWrap(true);
     contentLabel->setStyleSheet(
         "background: #2A2A3E; color: #E8E8F0; font-size: 13px;"

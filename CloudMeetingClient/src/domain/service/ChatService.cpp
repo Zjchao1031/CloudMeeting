@@ -3,7 +3,17 @@
  * @brief 实现聊天消息业务服务。
  */
 #include "domain/service/ChatService.h"
+#include "network/NetworkFacade.h"
 #include "common/Constants.h"
+
+ChatService::ChatService(QObject *parent)
+    : QObject(parent)
+{}
+
+void ChatService::setNetworkFacade(NetworkFacade *facade)
+{
+    m_network = facade;
+}
 
 bool ChatService::validateMessageUtf8Bytes(const QString &text) const
 {
@@ -12,13 +22,26 @@ bool ChatService::validateMessageUtf8Bytes(const QString &text) const
 
 void ChatService::sendMessage(const QString &text)
 {
-    Q_UNUSED(text)
-    // 待实现：调用 NetworkFacade 发送消息。
+    if (!validateMessageUtf8Bytes(text)) {
+        emit sendFailed("消息过长，请限制在 1024 字节以内。");
+        return;
+    }
+
+    // 阶段二暂用 Mock，阶段三再通过 NetworkFacade 发送。
+    if (m_network) {
+        m_network->sendChatMessage(text);
+    }
 }
 
 void ChatService::appendIncomingMessage(const ChatMessage &msg)
 {
     m_messages.append(msg);
+    emit newMessageReceived(msg);
+}
+
+void ChatService::clearMessages()
+{
+    m_messages.clear();
 }
 
 const QVector<ChatMessage> &ChatService::messages() const

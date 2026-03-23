@@ -10,6 +10,11 @@
  */
 
 class MeetingWindow;
+class MeetingController;
+class UserProfileService;
+class ChatService;
+class ParticipantRepository;
+struct RoomInfo;
 
 /**
  * @class MainWindow
@@ -56,9 +61,27 @@ private slots:
     void onOpenSettingsClicked();
 
     /**
-     * @brief 处理会议页面发出的离开请求。
+     * @brief 处理成功进入会议后的界面切换。
+     * @param[in] room 当前会议房间信息。
      */
-    void onLeaveRequested();
+    void onMeetingEntered(const RoomInfo &room);
+
+    /**
+     * @brief 处理离开会议后的界面切换。
+     */
+    void onMeetingExited();
+
+    /**
+     * @brief 处理会议被主持人关闭的通知。
+     */
+    void onRoomClosed();
+
+    /**
+     * @brief 处理业务层错误提示。
+     * @param[in] title 错误标题。
+     * @param[in] message 错误详情。
+     */
+    void onErrorOccurred(const QString &title, const QString &message);
 
 private:
     /**
@@ -67,14 +90,21 @@ private:
     void setupUi();
 
     /**
+     * @brief 绑定业务层信号与 UI 槽。
+     */
+    void bindServices();
+
+    /**
      * @brief 根据当前用户资料刷新头像与昵称显示。
      */
     void updateUserDisplay();
 
-    QWidget       *m_userContainer = nullptr; ///< 顶部用户信息点击区域。
-    QLabel        *m_avatarLabel   = nullptr; ///< 顶部显示用户头像的标签。
-    QLabel        *m_nicknameLabel = nullptr; ///< 顶部显示用户昵称的标签。
-    MeetingWindow *m_meetingWindow = nullptr; ///< 会议页面窗口组件。
-    QString        m_nickname = "用户";      ///< 当前用户昵称。
-    QPixmap        m_avatar;                  ///< 当前用户头像。
+    QWidget               *m_userContainer = nullptr; ///< 顶部用户信息点击区域。
+    QLabel                *m_avatarLabel   = nullptr; ///< 顶部显示用户头像的标签。
+    QLabel                *m_nicknameLabel = nullptr; ///< 顶部显示用户昵称的标签。
+    MeetingWindow         *m_meetingWindow = nullptr; ///< 会议页面窗口组件。
+    MeetingController     *m_meetingCtrl   = nullptr; ///< 会议控制器。
+    UserProfileService    *m_profileSvc    = nullptr; ///< 用户资料服务。
+    ChatService           *m_chatSvc       = nullptr; ///< 聊天服务。
+    ParticipantRepository *m_participantRepo = nullptr; ///< 参会者仓库。
 };

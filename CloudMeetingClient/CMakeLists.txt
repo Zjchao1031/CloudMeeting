@@ -49,10 +49,13 @@ set(CLIENT_SOURCES
     src/ui/widgets/ToolBarPanel.cpp
     include/ui/widgets/ToolBarPanel.h
 
-    # Domain services (stubs)
+    # Domain services
     src/domain/service/MeetingController.cpp
+    include/domain/service/MeetingController.h
     src/domain/service/ParticipantRepository.cpp
+    include/domain/service/ParticipantRepository.h
     src/domain/service/ChatService.cpp
+    include/domain/service/ChatService.h
     src/domain/service/UserProfileService.cpp
 
     # Network (stubs)
@@ -83,6 +86,11 @@ qt_add_executable(CloudMeetingClient
     WIN32
     ${CLIENT_SOURCES}
     avatars.qrc
+)
+
+target_compile_definitions(CloudMeetingClient
+    PRIVATE
+        CLOUDMEETING_CLIENT_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 target_link_libraries(CloudMeetingClient

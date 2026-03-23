@@ -8,6 +8,8 @@
 #include "ui/widgets/VideoTileWidget.h"
 #include "ui/widgets/ToolBarPanel.h"
 #include "ui/dialogs/ConfirmDialog.h"
+#include "app/AppContext.h"
+#include "domain/service/ParticipantRepository.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QSplitter>
@@ -31,7 +33,7 @@ MeetingWindow::~MeetingWindow() {}
 
 void MeetingWindow::setupUi()
 {
-    setWindowTitle("CloudMeeting - \u4f1a\u8bae\u4e2d");
+    setWindowTitle("CloudMeeting - 会议中");
     resize(1280, 760);
     setMinimumSize(900, 600);
 
@@ -66,18 +68,6 @@ void MeetingWindow::setupUi()
     m_videoLayout = new QVBoxLayout(videoInner);
     m_videoLayout->setContentsMargins(0, 0, 0, 0);
     m_videoLayout->setSpacing(10);
-
-    // 模拟视频卡片。
-    auto *tile1 = new VideoTileWidget(videoInner);
-    tile1->setWatermark("张三（主持人）");
-    auto *tile2 = new VideoTileWidget(videoInner);
-    tile2->setWatermark("李四");
-    auto *tile3 = new VideoTileWidget(videoInner);
-    tile3->setWatermark("王五");
-
-    m_videoLayout->addWidget(tile1);
-    m_videoLayout->addWidget(tile2);
-    m_videoLayout->addWidget(tile3);
     m_videoLayout->addStretch();
 
     m_videoScrollArea->setWidget(videoInner);
@@ -108,10 +98,6 @@ void MeetingWindow::setupUi()
     root->addWidget(m_toolBar);
 }
 
-/**
- * @brief 创建顶部栏。
- * @return 顶部栏。
- */
 QWidget* MeetingWindow::makeTopBar()
 {
     auto *bar = new QWidget(this);
@@ -122,16 +108,16 @@ QWidget* MeetingWindow::makeTopBar()
     row->setContentsMargins(16, 0, 16, 0);
     row->setSpacing(12);
 
-    m_titleLabel = new QLabel("\u4e91\u4f1a\u8bae", bar);
+    m_titleLabel = new QLabel("云会议", bar);
     m_titleLabel->setStyleSheet("color: #E8E8F0; font-size: 15px; font-weight: 700;");
     row->addWidget(m_titleLabel);
     row->addStretch();
 
-    auto *roomHint = new QLabel("\u623f\u95f4\u53f7\uff1a", bar);
+    auto *roomHint = new QLabel("房间号：", bar);
     roomHint->setStyleSheet("color: #8888A8; font-size: 13px;");
-    m_roomIdLabel = new QLabel("482910", bar);
+    m_roomIdLabel = new QLabel("------", bar);
     m_roomIdLabel->setStyleSheet("color: #4F8EF7; font-size: 14px; font-weight: 700;");
-    m_copyBtn = new QPushButton("\u590d\u5236", bar);
+    m_copyBtn = new QPushButton("复制", bar);
     m_copyBtn->setStyleSheet(
         "QPushButton { background: rgba(79,142,247,0.12); color: #4F8EF7;"
         "  border: 1px solid #4F8EF7; border-radius: 4px;"
@@ -153,12 +139,12 @@ QWidget* MeetingWindow::makeTopBar()
     );
     deviceBtn->setFixedHeight(32);
     auto *deviceMenu = new QMenu(bar);
-    auto *camMenu    = deviceMenu->addMenu("\u5207\u6362\u6444\u50cf\u5934");
-    camMenu->addAction("\u5185\u7f6e\u6444\u50cf\u5934 (\u9ed8\u8ba4)");
-    camMenu->addAction("USB \u6444\u50cf\u5934")->setEnabled(false);
-    auto *micMenu    = deviceMenu->addMenu("\u5207\u6362\u9ea6\u514b\u98ce");
-    micMenu->addAction("\u5185\u7f6e\u9ea6\u514b\u98ce (\u9ed8\u8ba4)");
-    micMenu->addAction("\u8033\u673a\u9ea6\u514b\u98ce")->setEnabled(false);
+    auto *camMenu    = deviceMenu->addMenu("切换摄像头");
+    camMenu->addAction("内置摄像头 (默认)");
+    camMenu->addAction("USB 摄像头")->setEnabled(false);
+    auto *micMenu    = deviceMenu->addMenu("切换麦克风");
+    micMenu->addAction("内置麦克风 (默认)");
+    micMenu->addAction("耳机麦克风")->setEnabled(false);
     deviceBtn->setMenu(deviceMenu);
     row->addWidget(deviceBtn);
 
@@ -167,37 +153,77 @@ QWidget* MeetingWindow::makeTopBar()
 
 void MeetingWindow::bindSignals()
 {
+    // 复制房间号。
     connect(m_copyBtn, &QPushButton::clicked, this, [this]() {
         QApplication::clipboard()->setText(m_roomIdLabel->text());
-        m_copyBtn->setText("\u5df2\u590d\u5236");
+        m_copyBtn->setText("已复制");
         QTimer::singleShot(1500, this, [this]() {
-            m_copyBtn->setText("\u590d\u5236");
+            m_copyBtn->setText("复制");
         });
     });
 
+    // 退出会议确认。
     connect(m_toolBar, &ToolBarPanel::leaveRequested, this, [this]() {
-        bool confirmed = ConfirmDialog::showDanger(
-            "\u9000\u51fa\u4f1a\u8bae",
-            "\u60a8\u662f\u4f1a\u8bae\u4e3b\u6301\u4eba\uff0c\u9000\u51fa\u5c06\u5173\u95ed\u6574\u4e2a\u4f1a\u8bae\u5e76\u79fb\u9664\u6240\u6709\u53c2\u4f1a\u8005\uff0c\u786e\u8ba4\u7ee7\u7eed\u5417\uff1f",
-            "\u5173\u95ed\u4f1a\u8bae",
-            this
-        );
+        QString title, body, action;
+        if (m_roomInfo.isHost) {
+            title  = "关闭会议";
+            body   = "您是会议主持人，退出将关闭整个会议并移除所有参会者，确认继续吗？";
+            action = "关闭会议";
+        } else {
+            title  = "退出会议";
+            body   = "确认退出当前会议吗？";
+            action = "退出";
+        }
+        bool confirmed = ConfirmDialog::showDanger(title, body, action, this);
         if (confirmed) {
             emit leaveRequested();
         }
     });
+
+    // 聊天面板发送消息 -> 向外转发信号。
+    connect(m_chatPanel, &ChatPanel::messageSent, this, [this](const QString &text) {
+        emit chatMessageSent(text);
+    });
+
+    // 工具栏音视频开关 -> 向外转发信号。
+    connect(m_toolBar, &ToolBarPanel::cameraToggled, this, [this](bool on) {
+        m_cameraOn = on;
+        emit mediaStateChanged(m_cameraOn, m_micOn, m_screenShareOn);
+    });
+    connect(m_toolBar, &ToolBarPanel::micToggled, this, [this](bool on) {
+        m_micOn = on;
+        emit mediaStateChanged(m_cameraOn, m_micOn, m_screenShareOn);
+    });
+    connect(m_toolBar, &ToolBarPanel::screenShareToggled, this, [this](bool on) {
+        m_screenShareOn = on;
+        emit mediaStateChanged(m_cameraOn, m_micOn, m_screenShareOn);
+    });
 }
 
-void MeetingWindow::refreshLayout()
+void MeetingWindow::setRoomInfo(const RoomInfo &room)
 {
-    m_participantList->refresh();
+    m_roomInfo = room;
+    m_roomIdLabel->setText(room.roomId);
+    m_titleLabel->setText(room.isHost ? "云会议（主持人）" : "云会议");
+}
+
+void MeetingWindow::onParticipantsChanged()
+{
+    auto *repo = AppContext::instance().participantRepository();
+    if (!repo) return;
+    m_participantList->updateFromParticipants(repo->sortedParticipants());
+}
+
+void MeetingWindow::onNewChatMessage(const ChatMessage &msg)
+{
+    m_chatPanel->appendMessage(msg.userId, msg.nickname, msg.content);
 }
 
 void MeetingWindow::showRoomClosedDialog()
 {
     ConfirmDialog::showInfo(
-        "\u4f1a\u8bae\u5df2\u7ed3\u675f",
-        "\u4e3b\u6301\u4eba\u5df2\u5173\u95ed\u4f1a\u8bae\uff0c\u60a8\u5c06\u8fd4\u56de\u4e3b\u754c\u9762\u3002",
+        "会议已结束",
+        "主持人已关闭会议，您将返回主界面。",
         this
     );
     emit leaveRequested();
