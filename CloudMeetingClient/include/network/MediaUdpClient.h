@@ -2,6 +2,8 @@
 #include <QObject>
 #include <QUdpSocket>
 #include <QByteArray>
+#include <QHash>
+#include <QPair>
 
 /**
  * @file MediaUdpClient.h
@@ -78,9 +80,22 @@ private slots:
     void onVideoDatagram();
 
 private:
+    /**
+     * @brief 单路视频分片重组缓冲元素。
+     */
+    struct FragBuf {
+        QHash<quint8, QByteArray> frags;   ///< 分片索引 -> 分片数据。
+        quint8 totalFrags = 0;             ///< 应收分片总数（0 表示未知）。
+    };
+
     QUdpSocket m_audioUdp;          ///< 音频传输使用的 UDP 套接字。
     QUdpSocket m_videoUdp;          ///< 视频传输使用的 UDP 套接字。
     QString    m_serverHost;        ///< 媒体服务器主机地址。
-    quint16    m_audioPort = 9001;  ///< 音频传输端口。
-    quint16    m_videoPort = 9002;  ///< 视频传输端口。
+    quint16    m_audioPort = 9001;  ///< 音频上行端口。
+    quint16    m_videoPort = 9002;  ///< 视频上行端口。
+    quint16    m_audioSeq  = 0;     ///< 音频包序号计数器。
+    quint16    m_videoSeq  = 0;     ///< 视频包序号计数器。
+
+    // 视频分片重组缓冲区： key = (userId, seq)
+    QHash<QPair<quint32, quint16>, FragBuf> m_videoFragBuf;
 };

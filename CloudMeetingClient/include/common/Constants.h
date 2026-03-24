@@ -12,6 +12,15 @@
 namespace Constants
 {
     /**
+     * @name 服务器地址
+     * @{
+     */
+    inline constexpr const char *DEFAULT_SERVER_HOST = "127.0.0.1"; ///< 默认信令服务器地址。
+    /**
+     * @}
+     */
+
+    /**
      * @name 网络端口
      * @{
      */
@@ -28,7 +37,8 @@ namespace Constants
      * @name 心跳与重连
      * @{
      */
-    constexpr int HEARTBEAT_INTERVAL_MS  = 5000;  ///< 心跳发送间隔，单位：毫秒。
+    constexpr int CONNECT_TIMEOUT_MS    = 5000;  ///< 首次连接超时时间（毫秒）；
+    constexpr int HEARTBEAT_INTERVAL_MS = 5000;  ///< 心跳发送间隔，单位：毫秒。
     constexpr int RECONNECT_INTERVAL_MS  = 2000;  ///< 自动重连间隔，单位：毫秒。
     constexpr int RECONNECT_MAX_ATTEMPTS = 5;     ///< 最大重连尝试次数。
     constexpr int HEARTBEAT_TIMEOUT_MS   = 10000; ///< 心跳超时时间，单位：毫秒。

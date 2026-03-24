@@ -53,11 +53,18 @@ public:
      */
     ChatService* chatService() const;
 
+    /**
+     * @brief 获取网络门面。
+     * @return 网络门面指针。
+     */
+    NetworkFacade* networkFacade() const;
+
 private:
     AppContext() = default;
 
-    UserProfileService    *m_profileService = nullptr; ///< 用户资料服务。
+    UserProfileService    *m_profileService  = nullptr; ///< 用户资料服务。
     ParticipantRepository *m_participantRepo = nullptr; ///< 参会者仓库。
     MeetingController     *m_meetingCtrl     = nullptr; ///< 会议控制器。
     ChatService           *m_chatService     = nullptr; ///< 聊天服务。
+    NetworkFacade         *m_networkFacade   = nullptr; ///< 网络门面。
 };

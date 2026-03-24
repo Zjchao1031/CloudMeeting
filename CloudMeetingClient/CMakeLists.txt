@@ -58,8 +58,9 @@ set(CLIENT_SOURCES
     include/domain/service/ChatService.h
     src/domain/service/UserProfileService.cpp
 
-    # Network (stubs)
+    # Network
     src/network/NetworkFacade.cpp
+    include/network/NetworkFacade.h
     src/network/SignalingClient.cpp
     include/network/SignalingClient.h
     src/network/MediaUdpClient.cpp

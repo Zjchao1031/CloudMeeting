@@ -66,6 +66,21 @@ signals:
      */
     void disconnected();
 
+    /**
+     * @brief 达到最大重连次数后仍未成功时发出该信号。
+     */
+    void reconnectFailed();
+
+    /**
+     * @brief 重连成功（即断线后再次建立连接）时发出该信号。
+     */
+    void reconnected();
+
+    /**
+     * @brief 首次连接超时（5s 内未建立 TCP 连接）时发出该信号。
+     */
+    void connectTimeout();
+
 private slots:
     /**
      * @brief 处理套接字可读事件。
@@ -83,14 +98,24 @@ private slots:
     void onDisconnected();
 
     /**
-     * @brief 处理心跳定时器超时事件。
+     * @brief 处理心跳定时器超时事件（周期性发送 HEARTBEAT）。
      */
     void onHeartbeatTimeout();
+
+    /**
+     * @brief 处理心跳 ACK 超时事件（10s 未收到响应则触发重连）。
+     */
+    void onHeartbeatAckTimeout();
 
     /**
      * @brief 处理自动重连逻辑。
      */
     void handleReconnect();
+
+    /**
+     * @brief 处理首次连接超时事件。
+     */
+    void onConnectTimeout();
 
 private:
     /**
@@ -103,11 +128,14 @@ private:
      */
     void startHeartbeat();
 
-    QTcpSocket  m_socket;                ///< TCP 信令套接字。
-    QByteArray  m_recvBuffer;            ///< 尚未完成解析的接收缓冲区。
-    QTimer      m_heartbeatTimer;        ///< 定时发送心跳的定时器。
-    QTimer      m_reconnectTimer;        ///< 自动重连使用的定时器。
-    int         m_reconnectAttempts = 0; ///< 当前已执行的重连次数。
-    QString     m_host;                  ///< 目标信令服务器主机地址。
-    quint16     m_port = 9000;           ///< 目标信令服务器端口。
+    QTcpSocket  m_socket;                   ///< TCP 信令套接字。
+    QTimer      m_connectTimer;              ///< 首次连接超时定时器（5s）。
+    QByteArray  m_recvBuffer;               ///< 尚未完成解析的接收缓冲区。
+    QTimer      m_heartbeatTimer;           ///< 定时发送心跳的定时器。
+    QTimer      m_heartbeatAckTimer;        ///< 监测心跳 ACK 超时的定时器（10s）。
+    QTimer      m_reconnectTimer;           ///< 自动重连使用的定时器。
+    int         m_reconnectAttempts = 0;    ///< 当前已执行的重连次数。
+    bool        m_wasConnected      = false;///< 标记是否曾经连接过（用于区分首次连接与重连）。
+    QString     m_host;                     ///< 目标信令服务器主机地址。
+    quint16     m_port = 9000;              ///< 目标信令服务器端口。
 };

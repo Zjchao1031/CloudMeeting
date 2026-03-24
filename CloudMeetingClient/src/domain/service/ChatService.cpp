@@ -13,6 +13,9 @@ ChatService::ChatService(QObject *parent)
 void ChatService::setNetworkFacade(NetworkFacade *facade)
 {
     m_network = facade;
+    if (!m_network) return;
+    connect(m_network, &NetworkFacade::chatBroadcast,
+            this,      &ChatService::onChatBroadcast);
 }
 
 bool ChatService::validateMessageUtf8Bytes(const QString &text) const
@@ -47,4 +50,15 @@ void ChatService::clearMessages()
 const QVector<ChatMessage> &ChatService::messages() const
 {
     return m_messages;
+}
+
+void ChatService::onChatBroadcast(QJsonObject payload)
+{
+    ChatMessage msg;
+    msg.userId       = payload["user_id"].toString();
+    msg.nickname     = payload["nickname"].toString();
+    msg.avatarBase64 = payload["avatar_base64"].toString();
+    msg.content      = payload["content"].toString();
+    msg.timestamp    = payload["timestamp"].toVariant().toLongLong();
+    appendIncomingMessage(msg);
 }

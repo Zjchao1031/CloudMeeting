@@ -1,6 +1,7 @@
 #pragma once
 #include <QByteArray>
 #include <QJsonObject>
+#include "protocol/MediaPacket.h"
 
 /**
  * @file PacketCodec.h
@@ -32,4 +33,38 @@ public:
      * @return 若成功解码出完整数据包则返回 `true`，否则返回 `false`。
      */
     static bool decode(const QByteArray &buffer, quint8 &type, QJsonObject &payload, int &consumed);
+
+    /**
+     * @brief 将音频包头与 Opus 数据编码为 UDP 音频数据包。
+     * @param[in] header 音频包头结构体。
+     * @param[in] opusData Opus 编码后的音频数据。
+     * @return 编码后的完整 UDP 音频数据包。
+     */
+    static QByteArray encodeAudio(const AudioPacketHeader &header, const QByteArray &opusData);
+
+    /**
+     * @brief 将视频包头与 H.264 分片数据编码为 UDP 视频数据包。
+     * @param[in] header 视频包头结构体。
+     * @param[in] h264Fragment H.264 分片数据。
+     * @return 编码后的完整 UDP 视频数据包。
+     */
+    static QByteArray encodeVideo(const VideoPacketHeader &header, const QByteArray &h264Fragment);
+
+    /**
+     * @brief 从 UDP 音频数据包中解码包头与 Opus 数据。
+     * @param[in] datagram 收到的完整 UDP 数据包。
+     * @param[out] header 解码得到的音频包头。
+     * @param[out] opusData 解码得到的 Opus 数据。
+     * @return 解码成功返回 true，数据不足返回 false。
+     */
+    static bool decodeAudio(const QByteArray &datagram, AudioPacketHeader &header, QByteArray &opusData);
+
+    /**
+     * @brief 从 UDP 视频数据包中解码包头与 H.264 分片数据。
+     * @param[in] datagram 收到的完整 UDP 数据包。
+     * @param[out] header 解码得到的视频包头。
+     * @param[out] h264Fragment 解码得到的 H.264 分片数据。
+     * @return 解码成功返回 true，数据不足返回 false。
+     */
+    static bool decodeVideo(const QByteArray &datagram, VideoPacketHeader &header, QByteArray &h264Fragment);
 };

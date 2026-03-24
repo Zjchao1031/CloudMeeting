@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QVector>
 #include <QString>
+#include <QJsonObject>
 
 class NetworkFacade;
 
@@ -73,6 +74,13 @@ signals:
      * @param[in] reason 失败原因描述。
      */
     void sendFailed(const QString &reason);
+
+private slots:
+    /**
+     * @brief 处理来自 NetworkFacade 的聊天广播通知。
+     * @param[in] payload 包含消息信息的 JSON 载荷。
+     */
+    void onChatBroadcast(QJsonObject payload);
 
 private:
     NetworkFacade       *m_network = nullptr; ///< 当前绑定的网络通信门面。

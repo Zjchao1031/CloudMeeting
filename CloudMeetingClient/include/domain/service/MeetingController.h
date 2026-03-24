@@ -3,6 +3,7 @@
 #include "domain/model/Participant.h"
 #include <QObject>
 #include <QString>
+#include <QJsonObject>
 
 /**
  * @file MeetingController.h
@@ -160,6 +161,63 @@ signals:
      */
     void errorOccurred(const QString &title, const QString &message);
 
+private slots:
+    /**
+     * @brief 处理与信令服务器连接建立事件，向服务器发送已缓存的请求。
+     */
+    void onServerConnected();
+
+    /**
+     * @brief 处理最终重连失败事件。
+     */
+    void onServerReconnectFailed();
+
+    /**
+     * @brief 处理首次连接超时事件，回滚状态并提示用户。
+     */
+    void onServerConnectTimeout();
+
+    /**
+     * @brief 处理创建会议响应。
+     * @param[in] success 是否创建成功。
+     * @param[in] roomId  创建成功的房间号。
+     * @param[in] errorMsg 失败原因。
+     */
+    void onCreateRoomAck(bool success, const QString &roomId, const QString &errorMsg);
+
+    /**
+     * @brief 处理加入会议响应。
+     * @param[in] success 是否加入成功。
+     * @param[in] roomId 加入的房间号。
+     * @param[in] hostUserId 主持人用户 ID。
+     * @param[in] errorMsg 失败原因。
+     */
+    void onJoinRoomAck(bool success, const QString &roomId,
+                       const QString &hostUserId, const QString &errorMsg);
+
+    /**
+     * @brief 处理来自网络的成员加入通知。
+     * @param[in] payload 包含成员信息的 JSON 载荷。
+     */
+    void onMemberJoinFromNetwork(QJsonObject payload);
+
+    /**
+     * @brief 处理来自网络的成员离开通知。
+     * @param[in] userId 离开成员的用户 ID。
+     */
+    void onMemberLeaveFromNetwork(const QString &userId);
+
+    /**
+     * @brief 处理来自网络的媒体状态同步。
+     * @param[in] payload 包含媒体状态的 JSON 载荷。
+     */
+    void onMediaStateSyncFromNetwork(QJsonObject payload);
+
+    /**
+     * @brief 处理来自网络的房间关闭通知。
+     */
+    void onRoomClosedFromNetwork();
+
 private:
     /**
      * @brief 切换状态机状态。
@@ -168,7 +226,13 @@ private:
     void setState(MeetingState s);
 
     MeetingState            m_state   = MeetingState::Idle; ///< 当前状态机状态。
-    NetworkFacade          *m_network = nullptr;            ///< 当前绑定的网络通信门面。
+    NetworkFacade          *m_network = nullptr;            ///< 当前绑定的网络通信问面。
     ParticipantRepository  *m_repo    = nullptr;            ///< 参会者数据仓库。
     RoomInfo                m_currentRoom;                  ///< 当前会议房间信息缓存。
+    QString                 m_localUserId;                  ///< 当前用户在服务器分配的 userId。
+
+    // 缓存待发运作类型：0=无，1=创建，2=加入。
+    int                     m_pendingAction = 0;
+    CreateRoomOptions       m_pendingCreate;                ///< 缓存的创建会议参数。
+    JoinRoomOptions         m_pendingJoin;                  ///< 缓存的加入会议参数。
 };

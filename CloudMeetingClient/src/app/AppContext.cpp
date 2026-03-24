@@ -7,6 +7,7 @@
 #include "domain/service/ParticipantRepository.h"
 #include "domain/service/MeetingController.h"
 #include "domain/service/ChatService.h"
+#include "network/NetworkFacade.h"
 
 AppContext &AppContext::instance()
 {
@@ -22,8 +23,13 @@ void AppContext::setup()
     m_meetingCtrl     = new MeetingController;
     m_chatService     = new ChatService;
 
-    // 注入依赖。
+    // 创建网络门面。
+    m_networkFacade   = new NetworkFacade;
+
+    // 注入依赖：将 NetworkFacade 注入各业务服务。
     m_meetingCtrl->setParticipantRepository(m_participantRepo);
+    m_meetingCtrl->setNetworkFacade(m_networkFacade);
+    m_chatService->setNetworkFacade(m_networkFacade);
 
     // 加载用户资料（昵称 + 头像）。
     m_profileService->load();
@@ -33,3 +39,4 @@ UserProfileService*    AppContext::userProfileService()    const { return m_prof
 ParticipantRepository* AppContext::participantRepository() const { return m_participantRepo; }
 MeetingController*     AppContext::meetingController()     const { return m_meetingCtrl; }
 ChatService*           AppContext::chatService()           const { return m_chatService; }
+NetworkFacade*         AppContext::networkFacade()         const { return m_networkFacade; }
