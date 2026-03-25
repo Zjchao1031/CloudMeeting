@@ -13,6 +13,9 @@
 #include "domain/service/MeetingController.h"
 #include "domain/service/ChatService.h"
 #include "domain/service/ParticipantRepository.h"
+#include "network/NetworkFacade.h"
+#include "media/MediaEngine.h"
+#include "media/device/DeviceManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QWidget>
@@ -54,6 +57,10 @@ static QPixmap makeCircularPixmap(const QPixmap &src, int size)
     return result;
 }
 
+/**
+ * @brief 刷新控件动态属性变更后的 QSS 样式状态。
+ * @param[in] widget 待刷新样式的目标控件。
+ */
 static void refreshWidgetStyle(QWidget *widget)
 {
     if (widget == nullptr) return;
@@ -273,12 +280,59 @@ void MainWindow::bindServices()
     connect(m_meetingWindow, &MeetingWindow::chatMessageSent,
             m_chatSvc, &ChatService::sendMessage);
 
-    // MeetingWindow 媒体状态切换 -> 暂用 Mock 输出（阶段三接入 NetworkFacade）。
+    // MeetingWindow 媒体状态切换 -> NetworkFacade 发送状态 + MediaEngine 启停采集。
     connect(m_meetingWindow, &MeetingWindow::mediaStateChanged,
-            this, [](bool camera, bool mic, bool screen) {
-                Q_UNUSED(camera) Q_UNUSED(mic) Q_UNUSED(screen)
-                // 阶段三通过 NetworkFacade 发送 MEDIA_STATE。
+            this, [this](bool camera, bool mic, bool screen) {
+                auto *ne = AppContext::instance().networkFacade();
+                if (ne) ne->sendMediaState(camera, mic, screen);
+
+                auto *me = AppContext::instance().mediaEngine();
+                auto *dm = AppContext::instance().deviceManager();
+                if (!me) return;
+
+                if (camera)
+                    me->startCameraCapture(dm ? dm->currentCameraId() : QString{});
+                else
+                    me->stopCameraCapture();
+
+                if (mic)
+                    me->startAudioCapture(dm ? dm->currentMicId() : QString{});
+                else
+                    me->stopAudioCapture();
+
+                if (screen)
+                    me->startScreenShare();
+                else
+                    me->stopScreenShare();
             });
+
+    // 音量滑块 -> MediaEngine 音量设置。
+    connect(m_meetingWindow, &MeetingWindow::captureVolumeChanged,
+            this, [](int value) {
+                auto *me = AppContext::instance().mediaEngine();
+                if (me) me->setCaptureVolume(value);
+            });
+    connect(m_meetingWindow, &MeetingWindow::playbackVolumeChanged,
+            this, [](int value) {
+                auto *me = AppContext::instance().mediaEngine();
+                if (me) me->setPlaybackVolume(value);
+            });
+
+    // MediaEngine 远端/本地视频帧 -> MeetingWindow Tile 展示。
+    auto *me = AppContext::instance().mediaEngine();
+    if (me) {
+        connect(me, &MediaEngine::remoteVideoFrame,
+                m_meetingWindow, &MeetingWindow::onRemoteVideoFrame);
+        connect(me, &MediaEngine::localVideoFrame,
+                m_meetingWindow, &MeetingWindow::onLocalVideoFrame);
+    }
+
+    // 成员离开 -> MeetingWindow 移除 Tile。
+    auto *nf = AppContext::instance().networkFacade();
+    if (nf) {
+        connect(nf, &NetworkFacade::memberLeft,
+                m_meetingWindow, &MeetingWindow::onUserLeft);
+    }
 }
 
 void MainWindow::updateUserDisplay()

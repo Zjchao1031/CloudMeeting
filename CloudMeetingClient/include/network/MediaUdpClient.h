@@ -4,6 +4,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QPair>
+#include <QTimer>
 
 /**
  * @file MediaUdpClient.h
@@ -79,13 +80,19 @@ private slots:
      */
     void onVideoDatagram();
 
+    /**
+     * @brief 定期清理超时未完成的分片重组缓冲条目。
+     */
+    void onGcTimer();
+
 private:
     /**
      * @brief 单路视频分片重组缓冲元素。
      */
     struct FragBuf {
         QHash<quint8, QByteArray> frags;   ///< 分片索引 -> 分片数据。
-        quint8 totalFrags = 0;             ///< 应收分片总数（0 表示未知）。
+        quint8  totalFrags = 0;            ///< 应收分片总数（0 表示未知）。
+        qint64  arrivedAt  = 0;            ///< 首片到达的毫秒时间戳，用于超时清理。
     };
 
     QUdpSocket m_audioUdp;          ///< 音频传输使用的 UDP 套接字。
@@ -98,4 +105,5 @@ private:
 
     // 视频分片重组缓冲区： key = (userId, seq)
     QHash<QPair<quint32, quint16>, FragBuf> m_videoFragBuf;
+    QTimer m_gcTimer; ///< 定期清理已超时的不完整分片条目。
 };

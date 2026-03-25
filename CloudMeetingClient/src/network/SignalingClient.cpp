@@ -88,7 +88,7 @@ void SignalingClient::onDisconnected()
     m_heartbeatAckTimer.stop();
     emit disconnected();
     // 若连接过且重连次数未达上限，则安排重连。
-    if (m_wasConnected && m_reconnectAttempts < Constants::RECONNECT_MAX_ATTEMPTS) {
+    if (m_wasConnected && m_reconnectAttempts <= Constants::RECONNECT_MAX_ATTEMPTS) {
         m_reconnectTimer.start();
     }
 }

@@ -1,10 +1,13 @@
 #pragma once
+#include <memory>
 
 class UserProfileService;
 class ParticipantRepository;
 class MeetingController;
 class ChatService;
 class NetworkFacade;
+class MediaEngine;
+class DeviceManager;
 
 /**
  * @file AppContext.h
@@ -59,12 +62,32 @@ public:
      */
     NetworkFacade* networkFacade() const;
 
+    /**
+     * @brief 获取媒体引擎。
+     * @return 媒体引擎指针。
+     */
+    MediaEngine* mediaEngine() const;
+
+    /**
+     * @brief 获取设备管理器。
+     * @return 设备管理器指针。
+     */
+    DeviceManager* deviceManager() const;
+
 private:
     AppContext() = default;
 
-    UserProfileService    *m_profileService  = nullptr; ///< 用户资料服务。
-    ParticipantRepository *m_participantRepo = nullptr; ///< 参会者仓库。
-    MeetingController     *m_meetingCtrl     = nullptr; ///< 会议控制器。
-    ChatService           *m_chatService     = nullptr; ///< 聊天服务。
-    NetworkFacade         *m_networkFacade   = nullptr; ///< 网络门面。
+    /**
+     * @brief 析构应用上下文，按创建逆序释放所有服务对象。
+     */
+    ~AppContext();
+
+    // 声明顺序决定析构逆序，须与 setup() 的创建顺序相反，以保证依赖方先于被依赖方销毁。
+    std::unique_ptr<UserProfileService>    m_profileService;  ///< 用户资料服务。
+    std::unique_ptr<ParticipantRepository> m_participantRepo; ///< 参会者仓库。
+    std::unique_ptr<MeetingController>     m_meetingCtrl;     ///< 会议控制器。
+    std::unique_ptr<ChatService>           m_chatService;     ///< 聊天服务。
+    std::unique_ptr<NetworkFacade>         m_networkFacade;   ///< 网络门面。
+    std::unique_ptr<DeviceManager>         m_deviceManager;   ///< 音视频设备管理器。
+    std::unique_ptr<MediaEngine>           m_mediaEngine;     ///< 媒体能力调度引擎（最先析构）。
 };

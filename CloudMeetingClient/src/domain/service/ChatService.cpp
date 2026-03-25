@@ -30,7 +30,6 @@ void ChatService::sendMessage(const QString &text)
         return;
     }
 
-    // 阶段二暂用 Mock，阶段三再通过 NetworkFacade 发送。
     if (m_network) {
         m_network->sendChatMessage(text);
     }

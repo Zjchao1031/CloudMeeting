@@ -10,6 +10,9 @@
 #include "ui/dialogs/ConfirmDialog.h"
 #include "app/AppContext.h"
 #include "domain/service/ParticipantRepository.h"
+#include "media/MediaEngine.h"
+#include "media/device/DeviceManager.h"
+#include "domain/service/UserProfileService.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QSplitter>
@@ -21,6 +24,7 @@
 #include <QMenu>
 #include <QFrame>
 #include <QTimer>
+#include <QDateTime>
 
 MeetingWindow::MeetingWindow(QWidget *parent)
     : QWidget(parent)
@@ -139,14 +143,13 @@ QWidget* MeetingWindow::makeTopBar()
     );
     deviceBtn->setFixedHeight(32);
     auto *deviceMenu = new QMenu(bar);
-    auto *camMenu    = deviceMenu->addMenu("切换摄像头");
-    camMenu->addAction("内置摄像头 (默认)");
-    camMenu->addAction("USB 摄像头")->setEnabled(false);
-    auto *micMenu    = deviceMenu->addMenu("切换麦克风");
-    micMenu->addAction("内置麦克风 (默认)");
-    micMenu->addAction("耳机麦克风")->setEnabled(false);
+    m_camMenu = deviceMenu->addMenu("切换摄像头");
+    m_micMenu = deviceMenu->addMenu("切换麦克风");
     deviceBtn->setMenu(deviceMenu);
     row->addWidget(deviceBtn);
+
+    // 使用 DeviceManager 填充菜单项。
+    refreshDeviceMenus();
 
     return bar;
 }
@@ -198,6 +201,12 @@ void MeetingWindow::bindSignals()
         m_screenShareOn = on;
         emit mediaStateChanged(m_cameraOn, m_micOn, m_screenShareOn);
     });
+
+    // 工具栏音量滑块 -> 向外转发信号。
+    connect(m_toolBar, &ToolBarPanel::captureVolumeChanged,
+            this,      &MeetingWindow::captureVolumeChanged);
+    connect(m_toolBar, &ToolBarPanel::playbackVolumeChanged,
+            this,      &MeetingWindow::playbackVolumeChanged);
 }
 
 void MeetingWindow::setRoomInfo(const RoomInfo &room)
@@ -207,11 +216,116 @@ void MeetingWindow::setRoomInfo(const RoomInfo &room)
     m_titleLabel->setText(room.isHost ? "云会议（主持人）" : "云会议");
 }
 
+void MeetingWindow::refreshDeviceMenus()
+{
+    auto *dm = AppContext::instance().deviceManager();
+    if (!dm || !m_camMenu || !m_micMenu) return;
+
+    // 重建摄像头菜单项。
+    m_camMenu->clear();
+    const auto cams = dm->cameras();
+    for (const auto &dev : cams) {
+        QAction *act = m_camMenu->addAction(dev.name);
+        act->setCheckable(true);
+        act->setChecked(dev.id == dm->currentCameraId());
+        connect(act, &QAction::triggered, this, [this, dev]() {
+            auto *d  = AppContext::instance().deviceManager();
+            auto *me = AppContext::instance().mediaEngine();
+            if (d) d->switchCamera(dev.id);
+            if (me && m_cameraOn) {
+                me->stopCameraCapture();
+                me->startCameraCapture(dev.id);
+            }
+            refreshDeviceMenus();
+        });
+    }
+    if (cams.isEmpty())
+        m_camMenu->addAction("（未检测到摄像头）")->setEnabled(false);
+
+    // 重建麦克风菜单项。
+    m_micMenu->clear();
+    const auto mics = dm->microphones();
+    for (const auto &dev : mics) {
+        QAction *act = m_micMenu->addAction(dev.name);
+        act->setCheckable(true);
+        act->setChecked(dev.id == dm->currentMicId());
+        connect(act, &QAction::triggered, this, [this, dev]() {
+            auto *d  = AppContext::instance().deviceManager();
+            auto *me = AppContext::instance().mediaEngine();
+            if (d) d->switchMicrophone(dev.id);
+            if (me && m_micOn) {
+                me->stopAudioCapture();
+                me->startAudioCapture(dev.id);
+            }
+            refreshDeviceMenus();
+        });
+    }
+    if (mics.isEmpty())
+        m_micMenu->addAction("（未检测到麦克风）")->setEnabled(false);
+}
+
+void MeetingWindow::renderToTile(const QString &key, const QImage &frame,
+                                  const QString &label, bool atTop)
+{
+    // 24fps 节流：最小帧间隔约 41ms。
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (now - m_lastFrameTime.value(key, 0) < 41)
+        return;
+    m_lastFrameTime[key] = now;
+
+    // 按需创建 VideoTileWidget。
+    if (!m_videoTiles.contains(key)) {
+        auto *tile = new VideoTileWidget(m_videoScrollArea->widget());
+        tile->setWatermark(label);
+        // 插入到布局：本地预览置顶，远端帧排在 stretch 之前。
+        int insertPos = atTop ? 0 : m_videoLayout->count() - 1;
+        m_videoLayout->insertWidget(insertPos, tile);
+        m_videoTiles.insert(key, tile);
+        tile->show();
+    }
+    m_videoTiles[key]->updateFrame(frame);
+}
+
+void MeetingWindow::onRemoteVideoFrame(const QString &userId, const QImage &frame)
+{
+    const QString label = m_userNicknames.value(userId, userId);
+    renderToTile(userId, frame, label, false);
+}
+
+void MeetingWindow::onLocalVideoFrame(const QImage &frame)
+{
+    auto *svc = AppContext::instance().userProfileService();
+    const QString label = svc ? svc->nickname() + " （本地）" : "本地预览";
+    renderToTile(QStringLiteral("__local__"), frame, label, true);
+}
+
+void MeetingWindow::onUserLeft(const QString &userId)
+{
+    if (m_videoTiles.contains(userId)) {
+        VideoTileWidget *tile = m_videoTiles.take(userId);
+        m_videoLayout->removeWidget(tile);
+        tile->deleteLater();
+    }
+    m_lastFrameTime.remove(userId);
+    m_userNicknames.remove(userId);
+}
+
 void MeetingWindow::onParticipantsChanged()
 {
     auto *repo = AppContext::instance().participantRepository();
     if (!repo) return;
-    m_participantList->updateFromParticipants(repo->sortedParticipants());
+
+    const auto participants = repo->sortedParticipants();
+    m_participantList->updateFromParticipants(participants);
+
+    // 同步更新昵称映射，并刷新已有 tile 的水印。
+    for (const auto &p : participants)
+        m_userNicknames[p.userId] = p.nickname;
+
+    for (auto it = m_videoTiles.begin(); it != m_videoTiles.end(); ++it) {
+        if (m_userNicknames.contains(it.key()))
+            it.value()->setWatermark(m_userNicknames[it.key()]);
+    }
 }
 
 void MeetingWindow::onNewChatMessage(const ChatMessage &msg)

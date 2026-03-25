@@ -33,6 +33,9 @@ void MediaUdpClient::init(const QString &serverHost, quint16 audioPort, quint16 
     // 绑定本地随机端口，用于接收下行数据。
     m_audioUdp.bind(QHostAddress::AnyIPv4, 0);
     m_videoUdp.bind(QHostAddress::AnyIPv4, 0);
+    // 启动分片重组缓冲区定期清理，2 秒扫一次。
+    connect(&m_gcTimer, &QTimer::timeout, this, &MediaUdpClient::onGcTimer);
+    m_gcTimer.start(2000);
 }
 
 void MediaUdpClient::sendAudioFrame(quint32 userId, const QByteArray &opusData)
@@ -123,6 +126,9 @@ void MediaUdpClient::onVideoDatagram()
         // 分片重组：以 (userId, seq) 为 key 汇聚分片。
         const auto key = qMakePair(hdr.userId, hdr.sequence);
         auto &buf = m_videoFragBuf[key];
+        // 首片到达时记录时间戳，用于超时清理。
+        if (buf.arrivedAt == 0)
+            buf.arrivedAt = QDateTime::currentMSecsSinceEpoch();
         buf.frags[hdr.fragIndex] = fragData;
 
         if (isEnd) {
@@ -140,4 +146,24 @@ void MediaUdpClient::onVideoDatagram()
             emit videoDataReceived(hdr.userId, frame, isCamera);
         }
     }
+}
+
+void MediaUdpClient::onGcTimer()
+{
+    constexpr qint64 TIMEOUT_MS  = 2000; ///< 分片重组超时阈值。
+    constexpr int    MAX_ENTRIES = 128;  ///< 缓冲区条目硬上限。
+
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+
+    // 移除超过 2 秒仍未完成的分片条目。
+    for (auto it = m_videoFragBuf.begin(); it != m_videoFragBuf.end(); ) {
+        if (now - it->arrivedAt > TIMEOUT_MS)
+            it = m_videoFragBuf.erase(it);
+        else
+            ++it;
+    }
+
+    // 硬上限兜底：超过 128 条时直接清空。
+    if (m_videoFragBuf.size() > MAX_ENTRIES)
+        m_videoFragBuf.clear();
 }

@@ -1,6 +1,12 @@
 #pragma once
 #include <QByteArray>
 #include <QImage>
+#include <atomic>
+
+struct AVCodecContext;
+struct SwsContext;
+struct AVFrame;
+struct AVPacket;
 
 /**
  * @file VideoEncoder.h
@@ -45,6 +51,19 @@ public:
      */
     QByteArray encode(const QImage &frame);
 
+    /**
+     * @brief 请求下一帧强制编码为 IDR 关键帧。
+     */
+    void forceKeyFrame();
+
 private:
-    bool m_opened = false; ///< 编码器是否已成功打开。
+    AVCodecContext *m_codecCtx = nullptr; ///< FFmpeg 编码器上下文。
+    SwsContext     *m_swsCtx   = nullptr; ///< RGB32 → YUV420P 转换上下文。
+    AVFrame        *m_yuvFrame = nullptr; ///< YUV420P 帧缓冲区。
+    AVPacket       *m_pkt      = nullptr; ///< 编码输出数据包。
+    int             m_width    = 0;       ///< 编码画面宽度。
+    int             m_height   = 0;       ///< 编码画面高度。
+    int64_t         m_pts      = 0;       ///< 帧序号计数器。
+    std::atomic<bool> m_forceIdr{false};  ///< 下一帧是否强制 IDR（主线程写、采集线程读，需原子操作）。
+    bool            m_opened   = false;   ///< 编码器是否已成功打开。
 };

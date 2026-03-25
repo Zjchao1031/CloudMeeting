@@ -37,7 +37,7 @@ namespace Constants
      * @name 心跳与重连
      * @{
      */
-    constexpr int CONNECT_TIMEOUT_MS    = 5000;  ///< 首次连接超时时间（毫秒）；
+    constexpr int CONNECT_TIMEOUT_MS    = 5000;  ///< 首次连接超时时间（毫秒）。
     constexpr int HEARTBEAT_INTERVAL_MS = 5000;  ///< 心跳发送间隔，单位：毫秒。
     constexpr int RECONNECT_INTERVAL_MS  = 2000;  ///< 自动重连间隔，单位：毫秒。
     constexpr int RECONNECT_MAX_ATTEMPTS = 5;     ///< 最大重连尝试次数。

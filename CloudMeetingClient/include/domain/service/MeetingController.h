@@ -131,6 +131,12 @@ public:
      */
     const RoomInfo &currentRoom() const;
 
+    /**
+     * @brief 获取服务器分配给本地用户的 ID。
+     * @return 本地用户 ID 字符串；若尚未进入会议则返回空字符串。
+     */
+    QString localUserId() const;
+
 signals:
     /**
      * @brief 会议状态发生变更时发出该信号。

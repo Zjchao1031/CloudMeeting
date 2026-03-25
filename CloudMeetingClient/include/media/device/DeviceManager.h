@@ -47,6 +47,18 @@ public:
     QList<DeviceInfo> microphones() const;
 
     /**
+     * @brief 获取当前选中的摄像头设备标识。
+     * @return 当前摄像头 ID。
+     */
+    QString currentCameraId() const;
+
+    /**
+     * @brief 获取当前选中的麦克风设备标识。
+     * @return 当前麦克风 ID。
+     */
+    QString currentMicId() const;
+
+    /**
      * @brief 切换当前摄像头设备。
      * @param[in] id 目标摄像头设备标识。
      */

@@ -139,6 +139,7 @@ void MeetingController::onMediaStateSync(const QString &userId,
 
 MeetingState MeetingController::state() const { return m_state; }
 const RoomInfo &MeetingController::currentRoom() const { return m_currentRoom; }
+QString MeetingController::localUserId() const { return m_localUserId; }
 
 // ─── private slots ────────────────────────────────────────────────────────────
 

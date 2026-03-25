@@ -1,5 +1,7 @@
 #pragma once
 #include "media/capture/IVideoCaptureStrategy.h"
+#include <QThread>
+#include <atomic>
 
 /**
  * @file ScreenCaptureStrategy.h
@@ -8,7 +10,7 @@
 
 /**
  * @class ScreenCaptureStrategy
- * @brief 封装基于屏幕内容的视频采集策略。
+ * @brief 封装基于 FFmpeg gdigrab 的全屏截图采集策略，运行于独立线程。
  */
 class ScreenCaptureStrategy : public IVideoCaptureStrategy
 {
@@ -17,6 +19,11 @@ public:
      * @brief 构造屏幕采集策略。
      */
     ScreenCaptureStrategy();
+
+    /**
+     * @brief 析构并确保采集线程已停止。
+     */
+    ~ScreenCaptureStrategy() override;
 
     /**
      * @brief 启动屏幕采集。
@@ -36,5 +43,11 @@ public:
     bool isRunning() const override;
 
 private:
-    bool m_running = false; ///< 屏幕采集任务运行状态。
+    /**
+     * @brief 采集线程主循环：使用 gdigrab 捕获全屏并转换为 QImage。
+     */
+    void captureLoop();
+
+    std::atomic<bool> m_running{false}; ///< 屏幕采集任务运行状态（线程安全）。
+    QThread           m_thread;          ///< 采集工作线程。
 };

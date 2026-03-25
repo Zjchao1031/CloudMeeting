@@ -68,8 +68,9 @@ set(CLIENT_SOURCES
     src/network/PacketCodec.cpp
     src/network/ReconnectStrategy.cpp
 
-    # Media (stubs)
+    # Media
     src/media/MediaEngine.cpp
+    include/media/MediaEngine.h
     src/media/capture/CameraCaptureStrategy.cpp
     src/media/capture/ScreenCaptureStrategy.cpp
     src/media/codec/CodecFactory.cpp
@@ -102,6 +103,7 @@ target_link_libraries(CloudMeetingClient
         Qt6::Network
         avcodec
         avformat
+        avdevice
         avutil
         swscale
         swresample
