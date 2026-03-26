@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cerrno>
+#include <cstring>
 
 TcpSignalingServer::TcpSignalingServer()
     : m_reactor(new EpollReactor)
