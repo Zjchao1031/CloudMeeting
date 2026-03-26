@@ -1,9 +1,23 @@
 #pragma once
 #include <string>
+#include <mutex>
 
-namespace Logger
+class Logger
 {
-    void info(const std::string &msg);
-    void warn(const std::string &msg);
-    void error(const std::string &msg);
-} // namespace Logger
+public:
+    static Logger &instance();
+
+    static void info(const std::string &msg);
+    static void warn(const std::string &msg);
+    static void error(const std::string &msg);
+
+private:
+    Logger() = default;
+    ~Logger() = default;
+    Logger(const Logger &) = delete;
+    Logger &operator=(const Logger &) = delete;
+
+    void log(const std::string &type, const std::string &msg);
+
+    std::mutex m_mutex;
+};

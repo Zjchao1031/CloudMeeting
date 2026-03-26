@@ -1,10 +1,28 @@
 #include "handler/MediaStateHandler.h"
 #include "service/BroadcastService.h"
+#include "domain/SessionManager.h"
+#include "protocol/SignalType.h"
 #include "common/Logger.h"
+#include "json.hpp"
 
 void MediaStateHandler::handle(int fd, const std::string &payload)
 {
-    // TODO: 更新 ClientSession 媒体状态，广播 MEDIA_STATE_SYNC
-    (void)fd; (void)payload;
-    Logger::info("MediaStateHandler::handle called");
+    auto j = nlohmann::json::parse(payload, nullptr, false);
+    if (j.is_discarded()) { Logger::warn("MediaState: invalid JSON"); return; }
+
+    ClientSession *session = SessionManager::instance().findSessionByFd(fd);
+    if (!session) return;
+
+    session->cameraOn = j.value("camera", session->cameraOn);
+    session->micOn    = j.value("mic",    session->micOn);
+    session->screenOn = j.value("screen", session->screenOn);
+
+    nlohmann::json sync;
+    sync["user_id"] = session->userId;
+    sync["camera"]  = session->cameraOn;
+    sync["mic"]     = session->micOn;
+    sync["screen"]  = session->screenOn;
+
+    BroadcastService::instance().broadcastToRoom(
+        session->roomId, SignalType::MEDIA_STATE_SYNC, sync.dump(), fd);
 }

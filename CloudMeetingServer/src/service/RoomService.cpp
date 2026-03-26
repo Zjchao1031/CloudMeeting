@@ -3,6 +3,7 @@
 #include "domain/RoomManager.h"
 #include "domain/SessionManager.h"
 #include "common/IdGenerator.h"
+#include "common/TimeUtil.h"
 #include "common/Logger.h"
 
 RoomService &RoomService::instance()
@@ -20,10 +21,12 @@ std::string RoomService::createRoom(int fd, int maxMembers, bool hasPassword,
         maxMembers, hasPassword, password, userId);
 
     ClientSession session;
-    session.userId    = userId;
-    session.nickname  = nickname;
-    session.roomId    = roomId;
-    session.tcpFd     = fd;
+    session.userId         = userId;
+    session.nickname       = nickname;
+    session.roomId         = roomId;
+    session.tcpFd          = fd;
+    session.numericId      = IdGenerator::generateNumericUserId();
+    session.lastHeartbeat  = TimeUtil::nowSeconds();
     SessionManager::instance().addSession(session);
 
     Logger::info("Room created: " + roomId + " by " + nickname);
@@ -43,10 +46,12 @@ int RoomService::joinRoom(int fd, const std::string &roomId,
     room->memberIds.insert(userId);
 
     ClientSession session;
-    session.userId   = userId;
-    session.nickname = nickname;
-    session.roomId   = roomId;
-    session.tcpFd    = fd;
+    session.userId         = userId;
+    session.nickname       = nickname;
+    session.roomId         = roomId;
+    session.tcpFd          = fd;
+    session.numericId      = IdGenerator::generateNumericUserId();
+    session.lastHeartbeat  = TimeUtil::nowSeconds();
     SessionManager::instance().addSession(session);
 
     Logger::info(nickname + " joined room " + roomId);

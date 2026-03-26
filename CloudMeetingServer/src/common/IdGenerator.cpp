@@ -2,6 +2,7 @@
 #include <random>
 #include <sstream>
 #include <iomanip>
+#include <atomic>
 
 namespace IdGenerator
 {
@@ -23,5 +24,11 @@ namespace IdGenerator
         std::ostringstream oss;
         oss << "u_" << std::hex << std::setw(12) << std::setfill('0') << dist(rng);
         return oss.str();
+    }
+
+    uint32_t generateNumericUserId()
+    {
+        static std::atomic<uint32_t> counter{1};
+        return counter.fetch_add(1, std::memory_order_relaxed);
     }
 } // namespace IdGenerator

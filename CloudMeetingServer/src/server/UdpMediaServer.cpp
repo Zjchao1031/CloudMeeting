@@ -1,8 +1,11 @@
 #include "server/UdpMediaServer.h"
+#include "service/MediaForwardService.h"
+#include "protocol/MediaPacket.h"
 #include "common/Logger.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <cstring>
 
 static int bindUdp(uint16_t port)
 {
@@ -21,21 +24,84 @@ static int bindUdp(uint16_t port)
 UdpMediaServer::UdpMediaServer() {}
 UdpMediaServer::~UdpMediaServer() { stop(); }
 
-bool UdpMediaServer::start(uint16_t audioUp, uint16_t videoUp, uint16_t, uint16_t)
+bool UdpMediaServer::start(uint16_t audioUp, uint16_t videoUp,
+                            uint16_t audioDn, uint16_t videoDn)
 {
     m_audioUpFd = bindUdp(audioUp);
     m_videoUpFd = bindUdp(videoUp);
-    if (m_audioUpFd < 0 || m_videoUpFd < 0) {
-        Logger::error("UdpMediaServer bind failed"); return false;
+    m_audioDnFd = bindUdp(audioDn);
+    m_videoDnFd = bindUdp(videoDn);
+
+    if (m_audioUpFd < 0 || m_videoUpFd < 0 ||
+        m_audioDnFd < 0 || m_videoDnFd < 0) {
+        Logger::error("UdpMediaServer bind failed");
+        stop();
+        return false;
     }
-    Logger::info("UdpMediaServer ready, audioUp=" + std::to_string(audioUp)
-                 + " videoUp=" + std::to_string(videoUp));
-    // TODO: 启动独立线程接收并转发媒体包
+
+    // 将下行 fd 注入 MediaForwardService
+    MediaForwardService::instance().setAudioDnFd(m_audioDnFd);
+    MediaForwardService::instance().setVideoDnFd(m_videoDnFd);
+
+    m_running = true;
+    m_audioThread = std::thread([this]{ audioRecvLoop(); });
+    m_videoThread = std::thread([this]{ videoRecvLoop(); });
+
+    Logger::info("UdpMediaServer ready  audioUp=" + std::to_string(audioUp)
+                 + " videoUp=" + std::to_string(videoUp)
+                 + " audioDn=" + std::to_string(audioDn)
+                 + " videoDn=" + std::to_string(videoDn));
     return true;
 }
 
 void UdpMediaServer::stop()
 {
+    m_running = false;
+    // 关闭 fd 以唤醒阻塞的 recvfrom
     if (m_audioUpFd >= 0) { ::close(m_audioUpFd); m_audioUpFd = -1; }
     if (m_videoUpFd >= 0) { ::close(m_videoUpFd); m_videoUpFd = -1; }
+    if (m_audioDnFd >= 0) { ::close(m_audioDnFd); m_audioDnFd = -1; }
+    if (m_videoDnFd >= 0) { ::close(m_videoDnFd); m_videoDnFd = -1; }
+    if (m_audioThread.joinable()) m_audioThread.join();
+    if (m_videoThread.joinable()) m_videoThread.join();
+}
+
+void UdpMediaServer::audioRecvLoop()
+{
+    constexpr size_t BUF_SIZE = 2048;
+    uint8_t buf[BUF_SIZE];
+    sockaddr_in srcAddr{};
+    socklen_t   addrLen = sizeof(srcAddr);
+
+    while (m_running) {
+        ssize_t n = ::recvfrom(m_audioUpFd, buf, BUF_SIZE, 0,
+                               reinterpret_cast<sockaddr*>(&srcAddr), &addrLen);
+        if (n <= 0) break;
+        if (static_cast<size_t>(n) < sizeof(AudioPacketHeader)) continue;
+
+        uint32_t userId;
+        std::memcpy(&userId, buf, sizeof(uint32_t)); // 包头首字段
+        MediaForwardService::instance().forwardAudio(
+            userId, buf, static_cast<size_t>(n), srcAddr);
+    }
+}
+
+void UdpMediaServer::videoRecvLoop()
+{
+    constexpr size_t BUF_SIZE = 65536;
+    auto buf = std::make_unique<uint8_t[]>(BUF_SIZE);
+    sockaddr_in srcAddr{};
+    socklen_t   addrLen = sizeof(srcAddr);
+
+    while (m_running) {
+        ssize_t n = ::recvfrom(m_videoUpFd, buf.get(), BUF_SIZE, 0,
+                               reinterpret_cast<sockaddr*>(&srcAddr), &addrLen);
+        if (n <= 0) break;
+        if (static_cast<size_t>(n) < sizeof(VideoPacketHeader)) continue;
+
+        uint32_t userId;
+        std::memcpy(&userId, buf.get(), sizeof(uint32_t));
+        MediaForwardService::instance().forwardVideo(
+            userId, buf.get(), static_cast<size_t>(n), srcAddr);
+    }
 }

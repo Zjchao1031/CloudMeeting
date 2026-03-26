@@ -37,6 +37,7 @@ set(SERVER_SOURCES
 
 add_executable(CloudMeetingServer ${SERVER_SOURCES})
 
+
 target_link_libraries(CloudMeetingServer
     PRIVATE
         pthread

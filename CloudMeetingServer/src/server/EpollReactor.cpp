@@ -30,12 +30,18 @@ void EpollReactor::removeFd(int fd)
     g_callbacks.erase(fd);
 }
 
+void EpollReactor::setTimeoutCallback(TimeoutCallback cb)
+{
+    m_timeoutCb = std::move(cb);
+}
+
 void EpollReactor::run()
 {
     m_running = true;
     epoll_event events[1024];
     while (m_running) {
-        int n = ::epoll_wait(m_epollFd, events, 1024, 200);
+        int n = ::epoll_wait(m_epollFd, events, 1024, 1000);
+        if (m_timeoutCb) m_timeoutCb();
         for (int i = 0; i < n; ++i) {
             int fd = events[i].data.fd;
             auto it = g_callbacks.find(fd);

@@ -4,7 +4,7 @@
 
 void LeaveRoomHandler::handle(int fd, const std::string &payload)
 {
-    // TODO: 调用 RoomService::leaveRoom，广播 MEMBER_LEAVE 或 ROOM_CLOSED
-    (void)fd; (void)payload;
-    Logger::info("LeaveRoomHandler::handle called");
+    (void)payload;
+    // RoomService::leaveRoom 内部已处理广播 MEMBER_LEAVE / ROOM_CLOSED
+    RoomService::instance().leaveRoom(fd);
 }
