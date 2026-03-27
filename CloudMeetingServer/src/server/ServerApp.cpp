@@ -58,6 +58,7 @@ void ServerApp::run()
 
 void ServerApp::stop()
 {
+    if (m_stopped.exchange(true)) return; // 已停止，直接返回
     m_tcpServer->stop();
     m_udpServer->stop();
     Logger::info("CloudMeetingServer stopped.");

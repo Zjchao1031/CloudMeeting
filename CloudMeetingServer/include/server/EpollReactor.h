@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include <atomic>
 
 // epoll 事件循环封装，监听 fd 的可读事件并回调
 class EpollReactor
@@ -21,6 +22,6 @@ public:
 
 private:
     int             m_epollFd      = -1;
-    bool            m_running      = false;
+    std::atomic<bool> m_running{false};
     TimeoutCallback m_timeoutCb;
 };

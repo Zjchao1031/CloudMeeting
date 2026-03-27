@@ -24,7 +24,7 @@ void Logger::log(const std::string &type, const std::string &msg)
         << ']' << type << " : " << msg << '\n';
 
     std::lock_guard<std::mutex> lk(m_mutex);
-    std::cout << oss.str();
+    std::cerr << oss.str();
 }
 
 void Logger::info(const std::string &msg)  { instance().log("INFO",  msg); }

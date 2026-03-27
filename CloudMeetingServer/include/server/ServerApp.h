@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 
 class TcpSignalingServer;
 class UdpMediaServer;
@@ -12,6 +13,7 @@ public:
     void stop();
 
 private:
-    TcpSignalingServer *m_tcpServer = nullptr;
-    UdpMediaServer     *m_udpServer = nullptr;
+    TcpSignalingServer  *m_tcpServer = nullptr;
+    UdpMediaServer      *m_udpServer = nullptr;
+    std::atomic<bool>    m_stopped{false};
 };
