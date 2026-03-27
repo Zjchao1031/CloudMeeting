@@ -4,19 +4,12 @@
 #include "common/Constants.h"
 #include "common/Logger.h"
 #include <csignal>
-#include <mutex>
-#include <condition_variable>
+#include <thread>
+#include <chrono>
 
-static std::mutex              g_shutdownMutex;
-static std::condition_variable g_shutdownCv;
-static bool                    g_shutdown = false;
+static volatile sig_atomic_t g_shutdown = 0;
 
-static void signalHandler(int)
-{
-    std::lock_guard<std::mutex> lk(g_shutdownMutex);
-    g_shutdown = true;
-    g_shutdownCv.notify_all();
-}
+static void signalHandler(int) { g_shutdown = 1; }
 
 ServerApp::ServerApp()
     : m_tcpServer(new TcpSignalingServer)
@@ -49,8 +42,8 @@ void ServerApp::run()
     std::signal(SIGINT,  signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    std::unique_lock<std::mutex> lk(g_shutdownMutex);
-    g_shutdownCv.wait(lk, []{ return g_shutdown; });
+    while (!g_shutdown)
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     Logger::info("Shutdown signal received, stopping...");
     stop();

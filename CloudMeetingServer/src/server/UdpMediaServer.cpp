@@ -4,13 +4,20 @@
 #include "common/Logger.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 #include <unistd.h>
+#include <cerrno>
 #include <cstring>
 
 static int bindUdp(uint16_t port)
 {
     int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) return -1;
+
+    // 设置接收超时 500ms，使 recvfrom 定期返回以检查 m_running
+    struct timeval tv{0, 500000};
+    ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     sockaddr_in addr{};
     addr.sin_family      = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
@@ -76,7 +83,11 @@ void UdpMediaServer::audioRecvLoop()
     while (m_running) {
         ssize_t n = ::recvfrom(m_audioUpFd, buf, BUF_SIZE, 0,
                                reinterpret_cast<sockaddr*>(&srcAddr), &addrLen);
-        if (n <= 0) break;
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue; // 超时，重检 m_running
+            break; // 真实错误
+        }
+        if (n == 0) break;
         if (static_cast<size_t>(n) < sizeof(AudioPacketHeader)) continue;
 
         uint32_t userId;
@@ -96,7 +107,11 @@ void UdpMediaServer::videoRecvLoop()
     while (m_running) {
         ssize_t n = ::recvfrom(m_videoUpFd, buf.get(), BUF_SIZE, 0,
                                reinterpret_cast<sockaddr*>(&srcAddr), &addrLen);
-        if (n <= 0) break;
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue; // 超时，重检 m_running
+            break;
+        }
+        if (n == 0) break;
         if (static_cast<size_t>(n) < sizeof(VideoPacketHeader)) continue;
 
         uint32_t userId;
