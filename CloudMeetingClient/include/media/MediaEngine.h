@@ -2,8 +2,10 @@
 #include <QObject>
 #include <QImage>
 #include <QByteArray>
-#include <QThread>
 #include <QAudioSink>
+#include <QAudioSource>
+#include <QAudioDevice>
+#include <QAudioFormat>
 #include <QMediaDevices>
 #include <QString>
 #include <memory>
@@ -112,12 +114,18 @@ public:
 
     /**
      * @brief 设置本地用户 ID，用于标识发送的媒体数据包。
-     * @param[in] userId 本地用户 ID。
+     * @param[in] userId 本地用户 UUID 字符串。
      */
     void setLocalUserId(const QString &userId);
 
     /**
-     * @brief 移除指定远端用户的视频解码器，在成员离开时调用以释放资源。
+     * @brief 设置本地用户的数字 ID，填入 UDP 媒体包头以供服务器转发识别。
+     * @param[in] numericId 服务器分配的数字 ID。
+     */
+    void setLocalNumericId(quint32 numericId);
+
+    /**
+     * @brief 移除指定远端用户的全部视频解码器（摄像头流与屏幕共享流），在成员离开时调用以释放资源。
      * @param[in] userId 将要清除解码器的用户 ID。
      */
     void removeUserDecoder(const QString &userId);
@@ -132,22 +140,25 @@ signals:
      * @brief 解码出远端视频帧时发出。
      * @param[in] userId 视频帧所属用户。
      * @param[in] frame 解码后的视频图像。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void remoteVideoFrame(const QString &userId, const QImage &frame);
+    void remoteVideoFrame(const QString &userId, const QImage &frame, bool isCamera);
 
     /**
      * @brief 本地预览视频帧时发出。
      * @param[in] frame 本地采集的视频图像。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void localVideoFrame(const QImage &frame);
+    void localVideoFrame(const QImage &frame, bool isCamera);
 
 private slots:
     /**
      * @brief 处理从网络接收到的远端视频数据。
      * @param[in] userId 发送方用户 ID。
      * @param[in] h264Data H.264 编码数据。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void onRemoteVideoData(const QString &userId, const QByteArray &h264Data);
+    void onRemoteVideoData(const QString &userId, const QByteArray &h264Data, bool isCamera);
 
     /**
      * @brief 处理从网络接收到的远端音频数据。
@@ -173,12 +184,21 @@ private:
     void onCapturedVideoFrame(const QImage &frame, bool isCamera);
 
     /**
-     * @brief 音频采集线程主循环。
+     * @brief QAudioSource 有新音频数据可读时被调用：应用音量增益、凸凹 Opus 帧并发送。
      */
-    void audioCaptureLoop();
+    void onAudioInputReady();
 
-    NetworkFacade *m_network = nullptr;  ///< 绑定的网络门面。
-    QString        m_localUserId;        ///< 本地用户 ID。
+    /**
+     * @brief 将采集到的原生 PCM 转换为 S16LE mono，同时应用音量增益。
+     * @param[in] raw     原始采样数据。
+     * @param[in] srcFmt  原始格式描述符。
+     * @return 转换后的 S16LE mono 数据。
+     */
+    QByteArray convertToS16Mono(const QByteArray &raw, const QAudioFormat &srcFmt);
+
+    NetworkFacade *m_network       = nullptr; ///< 绑定的网络门面。
+    QString        m_localUserId;              ///< 本地用户 UUID。
+    quint32        m_localNumericId = 0;       ///< 本地用户数字 ID（UDP 包头用）。
 
     // 视频采集。
     std::unique_ptr<IVideoCaptureStrategy> m_cameraCapture;  ///< 摄像头采集策略。
@@ -193,10 +213,12 @@ private:
     std::unordered_map<QString, std::unique_ptr<VideoDecoder>, QStringHasher> m_videoDecoders; ///< 远端用户 ID → H.264 解码器映射表。
     std::unique_ptr<AudioDecoder> m_audioDecoder;  ///< Opus 音频解码器（混音播放）。
 
-    // 音频采集线程。
-    QThread           m_audioCaptureThread; ///< 麦克风采集工作线程。
-    std::atomic<bool> m_audioRunning{false}; ///< 音频采集运行标志。
-    QString           m_micId;               ///< 当前麦克风设备 ID。
+    // 音频采集（Qt QAudioSource）。
+    QAudioSource *m_audioSource      = nullptr; ///< Qt 麦克风采集对象。
+    QIODevice    *m_audioCaptureIO   = nullptr; ///< QAudioSource push 模式返回的 IO 设备。
+    QAudioFormat  m_audioCaptureFormat;         ///< 实际使用的采集格式（富措备支持的格式）。
+    QByteArray    m_audioPcmBuffer;             ///< PCM 采集缓冲区，凸凹 960 采样 Opus 帧。
+    QString       m_micId;                     ///< 当前麦克风设备 ID。
 
     // 音频播放。
     std::unique_ptr<QAudioSink> m_audioSink;     ///< Qt 音频播放设备。

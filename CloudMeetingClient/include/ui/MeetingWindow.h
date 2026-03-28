@@ -68,14 +68,16 @@ public slots:
      * @brief 接收远端视频帧，按需创建或刷新对应用户的视频 Tile。
      * @param[in] userId 视频帧所属用户 ID。
      * @param[in] frame  解码后的视频图像。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void onRemoteVideoFrame(const QString &userId, const QImage &frame);
+    void onRemoteVideoFrame(const QString &userId, const QImage &frame, bool isCamera);
 
     /**
-     * @brief 接收本地摄像头预览帧，展示到本地 Tile。
+     * @brief 接收本地预览帧，摄像头和屏幕共享各渲染到独立 Tile。
      * @param[in] frame 本地采集的视频图像。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void onLocalVideoFrame(const QImage &frame);
+    void onLocalVideoFrame(const QImage &frame, bool isCamera);
 
     /**
      * @brief 成员离开时移除其视频 Tile 并释放相关资源。
@@ -146,6 +148,12 @@ private:
      */
     void renderToTile(const QString &key, const QImage &frame,
                       const QString &label, bool atTop);
+
+    /**
+     * @brief 移除指定 key 对应的视频 Tile 并释放相关资源。
+     * @param[in] key Tile 的唯一标识。
+     */
+    void removeTile(const QString &key);
 
     QLabel                *m_titleLabel      = nullptr; ///< 顶部栏会议标题标签。
     QLabel                *m_roomIdLabel     = nullptr; ///< 顶部栏房间号标签。

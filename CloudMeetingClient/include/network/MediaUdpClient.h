@@ -53,6 +53,14 @@ public:
      */
     void sendVideoFrameFragments(quint32 userId, const QByteArray &h264Data, bool isCamera);
 
+    /**
+     * @brief 向服务器音频和视频上行端口各发送一个最小合法包，
+     *        使服务器记录本客户端的 UDP 地址，从而能够下行转发媒体数据。
+     *        应在成功加入/创建房间并获得 numericId 后立即调用。
+     * @param[in] numericId 本地用户数字 ID，用于填充包头 userId 字段。
+     */
+    void sendUdpRegistration(quint32 numericId);
+
 signals:
     /**
      * @brief 当收到音频数据时发出该信号。

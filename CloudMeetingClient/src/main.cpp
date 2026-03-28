@@ -6,6 +6,7 @@
 #include "app/AppContext.h"
 #include "ui/MainWindow.h"
 #include "ui/AppStyle.h"
+#include "media/MediaEngine.h"
 #include <QApplication>
 
 /**
@@ -27,6 +28,12 @@ int main(int argc, char *argv[])
 
     // 应用全局深色主题。
     app.setStyleSheet(AppStyle::GLOBAL_QSS);
+
+    // 在事件循环退出前提前停止所有媒体/网络资源，确保多媒体后端线程在
+    // QApplication 销毁前得到清理；静态单例析构器中的同名调用届时为空操作。
+    QObject::connect(&app, &QApplication::aboutToQuit, []() {
+        AppContext::instance().mediaEngine()->stopAll();
+    });
 
     MainWindow w;
     w.show();

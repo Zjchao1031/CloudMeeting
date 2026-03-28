@@ -98,8 +98,9 @@ void MeetingController::leaveRoom()
     if (m_repo) {
         m_repo->clearAll();
     }
-    m_currentRoom = RoomInfo{};
+    m_currentRoom    = RoomInfo{};
     m_localUserId.clear();
+    m_localNumericId = 0;
     setState(MeetingState::Idle);
     emit meetingExited();
 }
@@ -140,6 +141,7 @@ void MeetingController::onMediaStateSync(const QString &userId,
 MeetingState MeetingController::state() const { return m_state; }
 const RoomInfo &MeetingController::currentRoom() const { return m_currentRoom; }
 QString MeetingController::localUserId() const { return m_localUserId; }
+quint32 MeetingController::localNumericId() const { return m_localNumericId; }
 
 // ─── private slots ────────────────────────────────────────────────────────────
 
@@ -168,9 +170,10 @@ void MeetingController::onServerConnected()
 void MeetingController::onServerReconnectFailed()
 {
     if (m_repo) m_repo->clearAll();
-    m_currentRoom = RoomInfo{};
+    m_currentRoom    = RoomInfo{};
     m_localUserId.clear();
-    m_pendingAction = 0;
+    m_localNumericId = 0;
+    m_pendingAction  = 0;
     setState(MeetingState::Idle);
     emit errorOccurred("网络错误", "与服务器的连接已断开，多次重连失败，请检查网络后重试。");
 }
@@ -184,6 +187,7 @@ void MeetingController::onServerConnectTimeout()
 }
 
 void MeetingController::onCreateRoomAck(bool success, const QString &roomId,
+                                         const QString &userId, quint32 numericId,
                                          const QString &errorMsg)
 {
     m_pendingAction = 0;
@@ -194,21 +198,21 @@ void MeetingController::onCreateRoomAck(bool success, const QString &roomId,
         return;
     }
 
-    // 服务器分配的 userId 通过 payload["user_id"] 传回，这里通过 roomId 附带的 payload 获取；
-    // 当前协议中 user_id 由 JOIN_ROOM_ACK 或 CREATE_ROOM_ACK 下发。
+    m_localUserId    = userId;
+    m_localNumericId = numericId;
+
     m_currentRoom.roomId      = roomId;
     m_currentRoom.maxMembers  = m_pendingCreate.maxMembers;
     m_currentRoom.hasPassword = m_pendingCreate.hasPassword;
     m_currentRoom.isHost      = true;
 
-    // 将自己加入参会者列表（userId 由服务器随后的 MEMBER_JOIN 通知带入，
-    // 此处先用临时 ID 占位，MEMBER_JOIN 到达后会被 upsert 覆盖）。
     if (m_repo) {
         Participant self;
-        self.userId       = m_localUserId.isEmpty() ? "local_host" : m_localUserId;
+        self.userId       = m_localUserId;
         self.nickname     = m_pendingCreate.nickname;
         self.avatarBase64 = m_pendingCreate.avatarBase64;
         self.isHost       = true;
+        self.numericId    = m_localNumericId;
         m_currentRoom.hostUserId = self.userId;
         m_repo->upsertParticipant(self);
     }
@@ -218,7 +222,9 @@ void MeetingController::onCreateRoomAck(bool success, const QString &roomId,
 }
 
 void MeetingController::onJoinRoomAck(bool success, const QString &roomId,
-                                       const QString &hostUserId, const QString &errorMsg)
+                                       const QString &hostUserId,
+                                       const QString &userId, quint32 numericId,
+                                       const QString &errorMsg)
 {
     m_pendingAction = 0;
     if (!success) {
@@ -228,16 +234,20 @@ void MeetingController::onJoinRoomAck(bool success, const QString &roomId,
         return;
     }
 
+    m_localUserId    = userId;
+    m_localNumericId = numericId;
+
     m_currentRoom.roomId      = roomId;
     m_currentRoom.hostUserId  = hostUserId;
     m_currentRoom.isHost      = false;
 
     if (m_repo) {
         Participant self;
-        self.userId       = m_localUserId.isEmpty() ? "local_user" : m_localUserId;
+        self.userId       = m_localUserId;
         self.nickname     = m_pendingJoin.nickname;
         self.avatarBase64 = m_pendingJoin.avatarBase64;
         self.isHost       = false;
+        self.numericId    = m_localNumericId;
         m_repo->upsertParticipant(self);
     }
 
@@ -249,10 +259,14 @@ void MeetingController::onMemberJoinFromNetwork(QJsonObject payload)
 {
     if (m_state != MeetingState::InMeeting || !m_repo) return;
     Participant p;
-    p.userId       = payload["user_id"].toString();
-    p.nickname     = payload["nickname"].toString();
-    p.avatarBase64 = payload["avatar_base64"].toString();
-    p.isHost       = payload["is_host"].toBool();
+    p.userId        = payload["user_id"].toString();
+    p.nickname      = payload["nickname"].toString();
+    p.avatarBase64  = payload["avatar_base64"].toString();
+    p.isHost        = payload["is_host"].toBool();
+    p.numericId     = static_cast<quint32>(payload["numeric_id"].toInt());
+    p.cameraOn      = payload["camera"].toBool();
+    p.micOn         = payload["microphone"].toBool();
+    p.screenShareOn = payload["screen_share"].toBool();
     m_repo->upsertParticipant(p);
 }
 
@@ -277,9 +291,10 @@ void MeetingController::onRoomClosedFromNetwork()
     if (m_state == MeetingState::Idle) return;
     if (m_network) m_network->disconnectFromServer();
     if (m_repo)    m_repo->clearAll();
-    m_currentRoom = RoomInfo{};
+    m_currentRoom    = RoomInfo{};
     m_localUserId.clear();
-    m_pendingAction = 0;
+    m_localNumericId = 0;
+    m_pendingAction  = 0;
     setState(MeetingState::Idle);
     emit roomClosed();
 }

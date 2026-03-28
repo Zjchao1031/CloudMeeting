@@ -1,13 +1,11 @@
 #pragma once
 #include "media/capture/IVideoCaptureStrategy.h"
+#include <QMediaCaptureSession>
+#include <QCamera>
+#include <QVideoSink>
+#include <QMetaObject>
 #include <QString>
-#include <QThread>
-#include <QMutex>
 #include <atomic>
-
-struct AVFormatContext;
-struct AVCodecContext;
-struct SwsContext;
 
 /**
  * @file CameraCaptureStrategy.h
@@ -16,25 +14,29 @@ struct SwsContext;
 
 /**
  * @class CameraCaptureStrategy
- * @brief 封装基于 FFmpeg dshow 的摄像头视频采集策略，运行于独立线程。
+ * @brief 封装基于 Qt Multimedia QCamera 的摄像头视频采集策略。
+ *
+ * Qt Multimedia 对象全部在主线程构造与析构，start()/stop() 均从主线程调用，
+ * 帧回调通过 Qt::DirectConnection 在后端线程执行（仅做图像转换，不访问 Qt 对象），
+ * 彻底避免跨线程停止时的死锁问题。
  */
 class CameraCaptureStrategy : public IVideoCaptureStrategy
 {
 public:
     /**
      * @brief 构造摄像头采集策略。
-     * @param[in] deviceId 目标摄像头设备标识；为空时表示使用默认设备。
+     * @param[in] deviceId 目标摄像头设备描述字符串；为空时使用系统默认设备。
      */
     explicit CameraCaptureStrategy(const QString &deviceId = {});
 
     /**
-     * @brief 析构并确保采集线程已停止。
+     * @brief 析构并确保采集已停止。
      */
     ~CameraCaptureStrategy() override;
 
     /**
-     * @brief 设置采集使用的设备 ID。
-     * @param[in] deviceId 摄像头设备标识。
+     * @brief 设置采集使用的设备描述字符串。
+     * @param[in] deviceId 摄像头设备描述字符串。
      */
     void setDeviceId(const QString &deviceId);
 
@@ -57,12 +59,15 @@ public:
 
 private:
     /**
-     * @brief 采集线程主循环：打开设备、循环读帧、转换为 QImage 并回调。
+     * @brief 处理后端线程投递的视频帧（转换、缩放后调用回调）。
+     * @param[in] frame 原始视频帧。
      */
-    void captureLoop();
+    void onVideoFrame(const QVideoFrame &frame);
 
-    QString            m_deviceId;                ///< 当前使用的摄像头设备标识。
-    mutable QMutex     m_deviceIdMutex;            ///< 保护 m_deviceId 读写的互斥量。
-    std::atomic<bool>  m_running{false};           ///< 采集任务运行状态（线程安全）。
-    QThread            m_thread;                   ///< 采集工作线程。
+    QString                 m_deviceId;             ///< 目标摄像头设备描述字符串。
+    std::atomic<bool>       m_running{false};        ///< 采集运行状态（原子，线程安全）。
+    QMediaCaptureSession    m_session;               ///< 媒体采集会话。
+    QCamera                 m_camera;                ///< 摄像头对象（主线程生命周期）。
+    QVideoSink              m_videoSink;             ///< 接收原始视频帧。
+    QMetaObject::Connection m_connection;            ///< videoFrameChanged 连接句柄，用于 stop 时断开。
 };

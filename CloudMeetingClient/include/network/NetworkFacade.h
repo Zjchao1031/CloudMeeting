@@ -110,19 +110,27 @@ signals:
      * @brief 收到创建会议响应时发出。
      * @param[in] success 是否创建成功。
      * @param[in] roomId 创建成功的房间号，失败时为空。
+     * @param[in] userId 服务器分配的本地用户 UUID。
+     * @param[in] numericId 服务器分配的本地用户数字 ID（用于 UDP 包头）。
      * @param[in] errorMsg 失败原因，成功时为空。
      */
-    void createRoomAck(bool success, const QString &roomId, const QString &errorMsg);
+    void createRoomAck(bool success, const QString &roomId,
+                       const QString &userId, quint32 numericId,
+                       const QString &errorMsg);
 
     /**
      * @brief 收到加入会议响应时发出。
      * @param[in] success 是否加入成功。
      * @param[in] roomId 加入的房间号，失败时为空。
      * @param[in] hostUserId 主持人用户 ID，失败时为空。
+     * @param[in] userId 服务器分配的本地用户 UUID。
+     * @param[in] numericId 服务器分配的本地用户数字 ID（用于 UDP 包头）。
      * @param[in] errorMsg 失败原因，成功时为空。
      */
     void joinRoomAck(bool success, const QString &roomId,
-                     const QString &hostUserId, const QString &errorMsg);
+                     const QString &hostUserId,
+                     const QString &userId, quint32 numericId,
+                     const QString &errorMsg);
 
     /**
      * @brief 收到房间关闭通知时发出。
@@ -152,6 +160,11 @@ signals:
      * @param[in] payload 包含聊天消息信息的 JSON 载荷。
      */
     void chatBroadcast(QJsonObject payload);
+
+    /**
+     * @brief 收到来自服务器的关键帧请求时发出，本端应立即强制输出 IDR 帧。
+     */
+    void keyframeRequested();
 
 private slots:
     /**

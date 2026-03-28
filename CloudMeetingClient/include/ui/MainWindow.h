@@ -107,4 +107,6 @@ private:
     UserProfileService    *m_profileSvc    = nullptr; ///< 用户资料服务。
     ChatService           *m_chatSvc       = nullptr; ///< 聊天服务。
     ParticipantRepository *m_participantRepo = nullptr; ///< 参会者仓库。
+    bool m_localCameraOn      = false; ///< 本地摄像头当前是否开启。
+    bool m_localScreenShareOn = false; ///< 本地屏幕共享当前是否开启。
 };

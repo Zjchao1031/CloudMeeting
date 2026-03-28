@@ -30,15 +30,9 @@ public:
 
     /**
      * @brief 获取用户输入的会议密码。
-     * @return 当前缓存的会议密码文本。
+     * @return 密码输入框的文本，未填写时为空字符串。
      */
     QString password() const;
-
-    /**
-     * @brief 弹出密码输入子对话框。
-     * @return 若用户完成密码输入并确认则返回 `true`，否则返回 `false`。
-     */
-    bool promptPassword();
 
 private slots:
     /**
@@ -52,8 +46,8 @@ private:
      */
     void setupUi();
 
-    QLineEdit   *m_roomIdEdit = nullptr; ///< 房间号输入框。
-    QPushButton *m_joinBtn    = nullptr; ///< 确认加入按钮。
-    QPushButton *m_cancelBtn  = nullptr; ///< 取消按钮。
-    QString      m_password;             ///< 用户输入的会议密码缓存。
+    QLineEdit   *m_roomIdEdit    = nullptr; ///< 房间号输入框。
+    QLineEdit   *m_passwordEdit  = nullptr; ///< 密码输入框（选填）。
+    QPushButton *m_joinBtn       = nullptr; ///< 确认加入按钮。
+    QPushButton *m_cancelBtn     = nullptr; ///< 取消按钮。
 };

@@ -14,13 +14,7 @@
 #include "common/Constants.h"
 #include "common/Logger.h"
 #include <QAudioFormat>
-
-extern "C" {
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libavdevice/avdevice.h>
-#include <libswresample/swresample.h>
-}
+#include <QAudioDevice>
 
 MediaEngine::MediaEngine(QObject *parent)
     : QObject(parent)
@@ -47,8 +41,8 @@ void MediaEngine::setNetworkFacade(NetworkFacade *network, const QString &localU
     auto *media = m_network->mediaClient();
     if (media) {
         connect(media, &MediaUdpClient::videoDataReceived,
-                this, [this](quint32 userId, QByteArray data, bool /*isCamera*/) {
-            onRemoteVideoData(QString::number(userId), data);
+                this, [this](quint32 userId, QByteArray data, bool isCamera) {
+            onRemoteVideoData(QString::number(userId), data, isCamera);
         });
         connect(media, &MediaUdpClient::audioDataReceived,
                 this, [this](quint32 userId, QByteArray data) {
@@ -101,8 +95,8 @@ void MediaEngine::stopScreenShare()
 
 void MediaEngine::onCapturedVideoFrame(const QImage &frame, bool isCamera)
 {
-    // 发送本地预览信号。
-    emit localVideoFrame(frame);
+    // 发送本地预览信号（携带来源类型，供显示层区分渲染）。
+    emit localVideoFrame(frame, isCamera);
 
     // 根据来源选择对应的编码器。
     VideoEncoder &enc = isCamera ? *m_cameraEncoder : *m_screenEncoder;
@@ -110,7 +104,7 @@ void MediaEngine::onCapturedVideoFrame(const QImage &frame, bool isCamera)
     if (h264.isEmpty() || !m_network) return;
 
     // 通过 UDP 发送——必须在主线程调用 QUdpSocket，使用队列连接切换线程。
-    quint32 uid    = m_localUserId.toUInt();
+    quint32 uid    = m_localNumericId;
     bool    screen = !isCamera;
     QMetaObject::invokeMethod(this, [this, uid, h264, screen]() {
         if (m_network)
@@ -122,165 +116,130 @@ void MediaEngine::onCapturedVideoFrame(const QImage &frame, bool isCamera)
 
 void MediaEngine::startAudioCapture(const QString &micId)
 {
-    if (m_audioRunning) return;
+    if (m_audioSource) return;
 
     m_audioEncoder->open(Constants::AUDIO_SAMPLE_RATE, Constants::AUDIO_CHANNELS);
     m_micId = micId;
-    m_audioRunning = true;
 
-    QObject::connect(&m_audioCaptureThread, &QThread::started,
-                     [this]() { audioCaptureLoop(); });
-    m_audioCaptureThread.start();
-    Logger::info(QStringLiteral("[MediaEngine] 麦克风采集已启动"));
+    // 按名称查找设备，找不到则使用系统默认输入。
+    QAudioDevice device = QMediaDevices::defaultAudioInput();
+    if (!micId.isEmpty()) {
+        for (const QAudioDevice &dev : QMediaDevices::audioInputs()) {
+            if (dev.description() == micId) {
+                device = dev;
+                break;
+            }
+        }
+    }
+
+    // 格式协商：优先 S16 mono 48kHz；若不支持则依次降级。
+    // onAudioInputReady 会将任意格式软件转换为 S16LE mono。
+    auto tryFmt = [&](int ch, QAudioFormat::SampleFormat sf) -> QAudioFormat {
+        QAudioFormat f;
+        f.setSampleRate(Constants::AUDIO_SAMPLE_RATE);
+        f.setChannelCount(ch);
+        f.setSampleFormat(sf);
+        return f;
+    };
+
+    QAudioFormat fmt;
+    if      (device.isFormatSupported(tryFmt(1, QAudioFormat::Int16)))   fmt = tryFmt(1, QAudioFormat::Int16);
+    else if (device.isFormatSupported(tryFmt(2, QAudioFormat::Int16)))   fmt = tryFmt(2, QAudioFormat::Int16);
+    else if (device.isFormatSupported(tryFmt(1, QAudioFormat::Float)))   fmt = tryFmt(1, QAudioFormat::Float);
+    else if (device.isFormatSupported(tryFmt(2, QAudioFormat::Float)))   fmt = tryFmt(2, QAudioFormat::Float);
+    else                                                                  fmt = device.preferredFormat();
+
+    m_audioCaptureFormat = fmt;
+    Logger::info(QStringLiteral("[MediaEngine] 麦克风格式: %1Hz %2ch %3")
+                 .arg(fmt.sampleRate()).arg(fmt.channelCount())
+                 .arg(fmt.sampleFormat() == QAudioFormat::Int16 ? "Int16" : "Float32"));
+
+    m_audioSource = new QAudioSource(device, fmt, this);
+    m_audioCaptureIO = m_audioSource->start();
+
+    if (m_audioSource->error() != QAudio::NoError || !m_audioCaptureIO) {
+        Logger::warn(QStringLiteral("[MediaEngine] 无法打开麦克风: %1").arg(device.description()));
+        delete m_audioSource;
+        m_audioSource    = nullptr;
+        m_audioCaptureIO = nullptr;
+        return;
+    }
+
+    connect(m_audioCaptureIO, &QIODevice::readyRead, this, &MediaEngine::onAudioInputReady);
+    Logger::info(QStringLiteral("[MediaEngine] 麦克风采集已启动: %1").arg(device.description()));
 }
 
 void MediaEngine::stopAudioCapture()
 {
-    if (!m_audioRunning) return;
-    m_audioRunning = false;
+    if (!m_audioSource) return;
 
-    if (m_audioCaptureThread.isRunning()) {
-        m_audioCaptureThread.quit();
-        m_audioCaptureThread.wait(3000);
+    if (m_audioCaptureIO) {
+        disconnect(m_audioCaptureIO, &QIODevice::readyRead, this, &MediaEngine::onAudioInputReady);
+        m_audioCaptureIO = nullptr;
     }
-    QObject::disconnect(&m_audioCaptureThread, &QThread::started, nullptr, nullptr);
+    m_audioSource->stop();
+    delete m_audioSource;
+    m_audioSource = nullptr;
+    m_audioPcmBuffer.clear();
     Logger::info(QStringLiteral("[MediaEngine] 麦克风采集已停止"));
 }
 
-void MediaEngine::audioCaptureLoop()
+void MediaEngine::onAudioInputReady()
 {
-    avdevice_register_all();
+    if (!m_audioCaptureIO) return;
 
-    const AVInputFormat *ifmt = av_find_input_format("dshow");
-    if (!ifmt) {
-        Logger::warn(QStringLiteral("[MediaEngine] dshow 不可用，无法采集音频"));
-        m_audioRunning = false;
-        return;
-    }
+    const QByteArray raw = m_audioCaptureIO->readAll();
+    if (raw.isEmpty()) return;
 
-    // 构造 dshow 音频设备 URL。
-    QString url = QStringLiteral("audio=%1").arg(m_micId);
-    QByteArray urlUtf8 = url.toUtf8();
+    // 转换为 S16LE mono（编码器输入格式）并应用增益。
+    m_audioPcmBuffer.append(convertToS16Mono(raw, m_audioCaptureFormat));
 
-    // 预分配并设置中断回调，使 stopAudioCapture() 能中断阻塞中的 av_read_frame。
-    AVFormatContext *fmtCtx = avformat_alloc_context();
-    fmtCtx->interrupt_callback.callback = [](void *ctx) -> int {
-        return static_cast<std::atomic<bool>*>(ctx)->load() ? 0 : 1;
-    };
-    fmtCtx->interrupt_callback.opaque = &m_audioRunning;
+    // 每帧 960 采样（20ms@48kHz）凑满后编码发送。
+    const int frameBytes = 960 * Constants::AUDIO_CHANNELS * 2;
+    while (m_audioPcmBuffer.size() >= frameBytes) {
+        QByteArray pcmFrame = m_audioPcmBuffer.left(frameBytes);
+        m_audioPcmBuffer.remove(0, frameBytes);
 
-    AVDictionary *opts = nullptr;
-    av_dict_set(&opts, "sample_rate", QByteArray::number(Constants::AUDIO_SAMPLE_RATE).constData(), 0);
-    av_dict_set(&opts, "channels", QByteArray::number(Constants::AUDIO_CHANNELS).constData(), 0);
-
-    int ret = avformat_open_input(&fmtCtx, urlUtf8.constData(), ifmt, &opts);
-    av_dict_free(&opts);
-    if (ret < 0) {
-        Logger::warn(QStringLiteral("[MediaEngine] 无法打开麦克风: %1").arg(m_micId));
-        m_audioRunning = false;
-        return;
-    }
-
-    avformat_find_stream_info(fmtCtx, nullptr);
-
-    int audioIdx = -1;
-    for (unsigned i = 0; i < fmtCtx->nb_streams; ++i) {
-        if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-            audioIdx = static_cast<int>(i);
-            break;
+        QByteArray opus = m_audioEncoder->encode(pcmFrame);
+        if (!opus.isEmpty() && m_network) {
+            m_network->mediaClient()->sendAudioFrame(m_localNumericId, opus);
         }
     }
-    if (audioIdx < 0) {
-        avformat_close_input(&fmtCtx);
-        m_audioRunning = false;
-        return;
-    }
+}
 
-    AVCodecParameters *par = fmtCtx->streams[audioIdx]->codecpar;
-    const AVCodec *codec = avcodec_find_decoder(par->codec_id);
-    AVCodecContext *decCtx = avcodec_alloc_context3(codec);
-    avcodec_parameters_to_context(decCtx, par);
-    avcodec_open2(decCtx, codec, nullptr);
+QByteArray MediaEngine::convertToS16Mono(const QByteArray &raw, const QAudioFormat &srcFmt)
+{
+    const int inCh  = srcFmt.channelCount();
+    const bool isFloat = (srcFmt.sampleFormat() == QAudioFormat::Float);
+    const double gain  = m_captureVolume / 100.0;
 
-    // 重采样：采集格式 → S16LE mono 48kHz。
-    SwrContext *swr = nullptr;
-    AVChannelLayout outLayout;
-    av_channel_layout_default(&outLayout, Constants::AUDIO_CHANNELS);
-    swr_alloc_set_opts2(&swr,
-                         &outLayout, AV_SAMPLE_FMT_S16, Constants::AUDIO_SAMPLE_RATE,
-                         &decCtx->ch_layout, decCtx->sample_fmt, decCtx->sample_rate,
-                         0, nullptr);
-    swr_init(swr);
+    // 每个输入帧的字节数（一个声道一个采样）。
+    const int bytesPerSample = isFloat ? 4 : 2;
+    const int frameSize      = bytesPerSample * inCh;
+    const int frameCount     = raw.size() / frameSize;
 
-    AVFrame *frame = av_frame_alloc();
-    AVPacket *pkt  = av_packet_alloc();
+    QByteArray out(frameCount * 2, Qt::Uninitialized);
+    auto *dst = reinterpret_cast<int16_t*>(out.data());
 
-    // 每帧 960 采样（20ms@48kHz），字节数 = 960 * 1 * 2。
-    const int frameSamples = 960;
-    const int frameBytes   = frameSamples * Constants::AUDIO_CHANNELS * 2;
-    QByteArray pcmBuffer;
-
-    Logger::info(QStringLiteral("[MediaEngine] 音频采集循环开始"));
-
-    while (m_audioRunning) {
-        ret = av_read_frame(fmtCtx, pkt);
-        if (ret < 0) break;
-
-        if (pkt->stream_index == audioIdx) {
-            avcodec_send_packet(decCtx, pkt);
-            while (avcodec_receive_frame(decCtx, frame) >= 0) {
-                // 重采样到 S16LE。
-                int outSamples = swr_get_out_samples(swr, frame->nb_samples);
-                QByteArray tmp(outSamples * Constants::AUDIO_CHANNELS * 2, Qt::Uninitialized);
-                uint8_t *outPtr[] = { reinterpret_cast<uint8_t*>(tmp.data()) };
-                int converted = swr_convert(swr, outPtr, outSamples,
-                                             const_cast<const uint8_t**>(frame->data),
-                                             frame->nb_samples);
-                if (converted > 0) {
-                    tmp.resize(converted * Constants::AUDIO_CHANNELS * 2);
-
-                    // 应用音量增益。
-                    if (m_captureVolume != 100) {
-                        auto *samples = reinterpret_cast<int16_t*>(tmp.data());
-                        int count = tmp.size() / 2;
-                        double gain = m_captureVolume / 100.0;
-                        for (int i = 0; i < count; ++i) {
-                            int val = static_cast<int>(samples[i] * gain);
-                            samples[i] = static_cast<int16_t>(qBound(-32768, val, 32767));
-                        }
-                    }
-
-                    pcmBuffer.append(tmp);
-                }
-            }
+    for (int i = 0; i < frameCount; ++i) {
+        float mono = 0.0f;
+        if (isFloat) {
+            const auto *src = reinterpret_cast<const float*>(raw.constData() + i * frameSize);
+            for (int ch = 0; ch < inCh; ++ch) mono += src[ch];
+            mono /= inCh;
+        } else {
+            const auto *src = reinterpret_cast<const int16_t*>(raw.constData() + i * frameSize);
+            int32_t sum = 0;
+            for (int ch = 0; ch < inCh; ++ch) sum += src[ch];
+            mono = static_cast<float>(sum) / inCh;
         }
-        av_packet_unref(pkt);
-
-        // 凑够一帧就编码并发送。
-        while (pcmBuffer.size() >= frameBytes) {
-            QByteArray pcmFrame = pcmBuffer.left(frameBytes);
-            pcmBuffer.remove(0, frameBytes);
-
-            QByteArray opus = m_audioEncoder->encode(pcmFrame);
-            if (!opus.isEmpty()) {
-                quint32 uid = m_localUserId.toUInt();
-                // 通过队列连接切换回主线程，避免跨线程操作 QUdpSocket。
-                QMetaObject::invokeMethod(this, [this, uid, opus]() {
-                    if (m_network)
-                        m_network->mediaClient()->sendAudioFrame(uid, opus);
-                }, Qt::QueuedConnection);
-            }
-        }
+        // Float 采样在 [-1.0,1.0] 范围，需先缩放至整数范围再应用增益。
+        // Int16 采样已在 [-32768,32767] 范围，直接应用增益即可。
+        const float scaled = isFloat ? (mono * 32767.0f) : mono;
+        const int val = static_cast<int>(scaled * gain);
+        dst[i] = static_cast<int16_t>(qBound(-32768, val, 32767));
     }
-
-    av_packet_free(&pkt);
-    av_frame_free(&frame);
-    swr_free(&swr);
-    avcodec_free_context(&decCtx);
-    avformat_close_input(&fmtCtx);
-
-    m_audioRunning = false;
-    Logger::info(QStringLiteral("[MediaEngine] 音频采集循环结束"));
+    return out;
 }
 
 // ─── 远端媒体接收 ─────────────────────────────────────────────
@@ -295,12 +254,14 @@ VideoDecoder* MediaEngine::ensureVideoDecoder(const QString &userId)
     return m_videoDecoders[userId].get();
 }
 
-void MediaEngine::onRemoteVideoData(const QString &userId, const QByteArray &h264Data)
+void MediaEngine::onRemoteVideoData(const QString &userId, const QByteArray &h264Data, bool isCamera)
 {
-    VideoDecoder *dec = ensureVideoDecoder(userId);
+    // 使用复合 key 区分同一用户的摄像头流与屏幕共享流解码器。
+    const QString decoderKey = userId + (isCamera ? QStringLiteral("_cam") : QStringLiteral("_scr"));
+    VideoDecoder *dec = ensureVideoDecoder(decoderKey);
     QImage img = dec->decode(h264Data);
     if (!img.isNull())
-        emit remoteVideoFrame(userId, img);
+        emit remoteVideoFrame(userId, img, isCamera);
 }
 
 void MediaEngine::onRemoteAudioData(const QString &userId, const QByteArray &opusData)
@@ -364,12 +325,20 @@ void MediaEngine::setLocalUserId(const QString &userId)
     m_localUserId = userId;
 }
 
+void MediaEngine::setLocalNumericId(quint32 numericId)
+{
+    m_localNumericId = numericId;
+}
+
 void MediaEngine::removeUserDecoder(const QString &userId)
 {
-    if (m_videoDecoders.count(userId)) {
-        m_videoDecoders.erase(userId);
-        Logger::info(QStringLiteral("[MediaEngine] 已移除用户 %1 的视频解码器").arg(userId));
+    // 同时移除摄像头流和屏幕共享流两个解码器。
+    const QStringList keys = { userId + QStringLiteral("_cam"), userId + QStringLiteral("_scr") };
+    for (const QString &key : keys) {
+        if (m_videoDecoders.count(key))
+            m_videoDecoders.erase(key);
     }
+    Logger::info(QStringLiteral("[MediaEngine] 已移除用户 %1 的视频解码器").arg(userId));
 }
 
 void MediaEngine::stopAll()

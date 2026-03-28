@@ -23,52 +23,7 @@ QString JoinMeetingDialog::roomId() const
 
 QString JoinMeetingDialog::password() const
 {
-    return m_password;
-}
-
-bool JoinMeetingDialog::promptPassword()
-{
-    // 内嵌密码输入子对话框。
-    QDialog dlg(this);
-    dlg.setWindowTitle("输入会议密码");
-    dlg.setFixedSize(320, 200);
-    dlg.setWindowFlags(dlg.windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
-    auto *root = new QVBoxLayout(&dlg);
-    root->setContentsMargins(24, 24, 24, 20);
-    root->setSpacing(16);
-
-    auto *label = new QLabel("该会议需要密码才能加入", &dlg);
-    label->setObjectName("hintLabel");
-    label->setAlignment(Qt::AlignCenter);
-
-    auto *edit = new QLineEdit(&dlg);
-    edit->setEchoMode(QLineEdit::Password);
-    edit->setPlaceholderText("请输入会议密码");
-    edit->setMaxLength(16);
-
-    auto *btnRow = new QHBoxLayout;
-    auto *cancelBtn = new QPushButton("取消", &dlg);
-    cancelBtn->setObjectName("smallOutlineBtn");
-    auto *okBtn = new QPushButton("确认", &dlg);
-    okBtn->setObjectName("smallBtn");
-    btnRow->addStretch();
-    btnRow->addWidget(cancelBtn);
-    btnRow->addWidget(okBtn);
-
-    root->addWidget(label);
-    root->addWidget(edit);
-    root->addStretch();
-    root->addLayout(btnRow);
-
-    QObject::connect(okBtn,     &QPushButton::clicked, &dlg, &QDialog::accept);
-    QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
-
-    if (dlg.exec() == QDialog::Accepted) {
-        m_password = edit->text();
-        return true;
-    }
-    return false;
+    return m_passwordEdit->text();
 }
 
 void JoinMeetingDialog::onJoinClicked()
@@ -83,7 +38,7 @@ void JoinMeetingDialog::onJoinClicked()
 void JoinMeetingDialog::setupUi()
 {
     setWindowTitle("加入会议");
-    setFixedSize(380, 260);
+    setFixedSize(380, 360);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     auto *root = new QVBoxLayout(this);
@@ -107,6 +62,16 @@ void JoinMeetingDialog::setupUi()
     m_roomIdEdit->setPlaceholderText("请输入 6 位房间号");
     m_roomIdEdit->setMaxLength(16);
     root->addWidget(m_roomIdEdit);
+
+    auto *pwdLabel = new QLabel("密码（选填）", this);
+    pwdLabel->setObjectName("accentLabel");
+    root->addWidget(pwdLabel);
+
+    m_passwordEdit = new QLineEdit(this);
+    m_passwordEdit->setEchoMode(QLineEdit::Password);
+    m_passwordEdit->setPlaceholderText("无密码房间可留空");
+    m_passwordEdit->setMaxLength(16);
+    root->addWidget(m_passwordEdit);
 
     root->addStretch();
 

@@ -39,8 +39,6 @@ bool VideoEncoder::open(int width, int height, int fps)
     m_codecCtx->pix_fmt   = AV_PIX_FMT_YUV420P;
     m_codecCtx->gop_size  = fps * 2; // 每 2 秒一个关键帧。
     m_codecCtx->max_b_frames = 0;    // 实时场景不使用 B 帧。
-    // 设置 Baseline Profile 以获得最好的兼容性。
-    m_codecCtx->profile = 66; // FF_PROFILE_H264_BASELINE
     // 码率控制：局域网场景，给予较高码率。
     m_codecCtx->bit_rate = 2000000; // 2 Mbps
 

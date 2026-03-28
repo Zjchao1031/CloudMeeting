@@ -283,6 +283,9 @@ void MainWindow::bindServices()
     // MeetingWindow 媒体状态切换 -> NetworkFacade 发送状态 + MediaEngine 启停采集。
     connect(m_meetingWindow, &MeetingWindow::mediaStateChanged,
             this, [this](bool camera, bool mic, bool screen) {
+                m_localCameraOn      = camera;
+                m_localScreenShareOn = screen;
+
                 auto *ne = AppContext::instance().networkFacade();
                 if (ne) ne->sendMediaState(camera, mic, screen);
 
@@ -332,6 +335,23 @@ void MainWindow::bindServices()
     if (nf) {
         connect(nf, &NetworkFacade::memberLeft,
                 m_meetingWindow, &MeetingWindow::onUserLeft);
+
+        // 成员加入时的关键帧协商：
+        // 1. 若新加入的成员已在广播（我们是后来者收到已有成员信息），向其请求关键帧。
+        // 2. 若我方正在广播（新成员加入），强制输出关键帧让新成员能开始解码。
+        connect(nf, &NetworkFacade::memberJoined, this, [this, nf](QJsonObject payload) {
+            const bool remoteCamera = payload[QStringLiteral("camera")].toBool();
+            const bool remoteScreen = payload[QStringLiteral("screen_share")].toBool();
+            const QString uid = payload[QStringLiteral("user_id")].toString();
+
+            if ((remoteCamera || remoteScreen) && !uid.isEmpty())
+                nf->sendRequestKeyframe(uid);
+
+            if (m_localCameraOn || m_localScreenShareOn) {
+                auto *me = AppContext::instance().mediaEngine();
+                if (me) me->forceVideoKeyFrame();
+            }
+        });
     }
 }
 

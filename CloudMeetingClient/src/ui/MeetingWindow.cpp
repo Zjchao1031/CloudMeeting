@@ -188,9 +188,10 @@ void MeetingWindow::bindSignals()
         emit chatMessageSent(text);
     });
 
-    // 工具栏音视频开关 -> 向外转发信号。
+    // 工具栏音视频开关 -> 向外转发信号；关闭时同步移除本地 Tile 残帧。
     connect(m_toolBar, &ToolBarPanel::cameraToggled, this, [this](bool on) {
         m_cameraOn = on;
+        if (!on) removeTile(QStringLiteral("__local_cam__"));
         emit mediaStateChanged(m_cameraOn, m_micOn, m_screenShareOn);
     });
     connect(m_toolBar, &ToolBarPanel::micToggled, this, [this](bool on) {
@@ -199,6 +200,7 @@ void MeetingWindow::bindSignals()
     });
     connect(m_toolBar, &ToolBarPanel::screenShareToggled, this, [this](bool on) {
         m_screenShareOn = on;
+        if (!on) removeTile(QStringLiteral("__local_scr__"));
         emit mediaStateChanged(m_cameraOn, m_micOn, m_screenShareOn);
     });
 
@@ -286,27 +288,42 @@ void MeetingWindow::renderToTile(const QString &key, const QImage &frame,
     m_videoTiles[key]->updateFrame(frame);
 }
 
-void MeetingWindow::onRemoteVideoFrame(const QString &userId, const QImage &frame)
+void MeetingWindow::removeTile(const QString &key)
 {
-    const QString label = m_userNicknames.value(userId, userId);
-    renderToTile(userId, frame, label, false);
+    if (m_videoTiles.contains(key)) {
+        VideoTileWidget *tile = m_videoTiles.take(key);
+        m_videoLayout->removeWidget(tile);
+        tile->deleteLater();
+    }
+    m_lastFrameTime.remove(key);
 }
 
-void MeetingWindow::onLocalVideoFrame(const QImage &frame)
+void MeetingWindow::onRemoteVideoFrame(const QString &userId, const QImage &frame, bool isCamera)
 {
+    const QString nickname = m_userNicknames.value(userId, userId);
+    const QString label = isCamera ? nickname : nickname + QStringLiteral("（屏幕共享）");
+    const QString key   = isCamera ? userId + QStringLiteral("_cam") : userId + QStringLiteral("_scr");
+    renderToTile(key, frame, label, false);
+}
+
+void MeetingWindow::onLocalVideoFrame(const QImage &frame, bool isCamera)
+{
+    // 流已关闭时丢弃残余帧，避免采集线程未完全退出前的帧重建 Tile。
+    if (isCamera && !m_cameraOn)     return;
+    if (!isCamera && !m_screenShareOn) return;
+
     auto *svc = AppContext::instance().userProfileService();
-    const QString label = svc ? svc->nickname() + " （本地）" : "本地预览";
-    renderToTile(QStringLiteral("__local__"), frame, label, true);
+    const QString nickname = svc ? svc->nickname() : QStringLiteral("本地预览");
+    const QString label = isCamera ? nickname + QStringLiteral("（本地）") : nickname + QStringLiteral("（屏幕共享）");
+    const QString key   = isCamera ? QStringLiteral("__local_cam__") : QStringLiteral("__local_scr__");
+    renderToTile(key, frame, label, true);
 }
 
 void MeetingWindow::onUserLeft(const QString &userId)
 {
-    if (m_videoTiles.contains(userId)) {
-        VideoTileWidget *tile = m_videoTiles.take(userId);
-        m_videoLayout->removeWidget(tile);
-        tile->deleteLater();
-    }
-    m_lastFrameTime.remove(userId);
+    // 同时移除摄像头流和屏幕共享流两个 Tile。
+    removeTile(userId + QStringLiteral("_cam"));
+    removeTile(userId + QStringLiteral("_scr"));
     m_userNicknames.remove(userId);
 }
 
@@ -318,13 +335,25 @@ void MeetingWindow::onParticipantsChanged()
     const auto participants = repo->sortedParticipants();
     m_participantList->updateFromParticipants(participants);
 
-    // 同步更新昵称映射，并刷新已有 tile 的水印。
-    for (const auto &p : participants)
+    // 同步更新昵称映射（UUID 和 numericId 字符串均作为 key），并刷新已有 tile 的水印。
+    for (const auto &p : participants) {
         m_userNicknames[p.userId] = p.nickname;
+        if (p.numericId != 0)
+            m_userNicknames[QString::number(p.numericId)] = p.nickname;
+    }
 
     for (auto it = m_videoTiles.begin(); it != m_videoTiles.end(); ++it) {
-        if (m_userNicknames.contains(it.key()))
-            it.value()->setWatermark(m_userNicknames[it.key()]);
+        const QString &key = it.key();
+        // 提取原始 userId（去掉 _cam / _scr 后缀）。
+        QString uid = key;
+        if (uid.endsWith(QStringLiteral("_cam")))      uid.chop(4);
+        else if (uid.endsWith(QStringLiteral("_scr"))) uid.chop(4);
+        if (m_userNicknames.contains(uid)) {
+            const bool isCamTile = key.endsWith(QStringLiteral("_cam"));
+            const QString label  = isCamTile ? m_userNicknames[uid]
+                                             : m_userNicknames[uid] + QStringLiteral("（屏幕共享）");
+            it.value()->setWatermark(label);
+        }
     }
 }
 

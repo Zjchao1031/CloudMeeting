@@ -10,6 +10,7 @@
 #include "network/NetworkFacade.h"
 #include "media/MediaEngine.h"
 #include "media/device/DeviceManager.h"
+#include "network/MediaUdpClient.h"
 
 AppContext &AppContext::instance()
 {
@@ -37,6 +38,24 @@ void AppContext::setup()
 
     // 注入依赖：将 NetworkFacade 注入各业务服务。
     m_meetingCtrl->setParticipantRepository(m_participantRepo.get());
+
+    // 成员离开时移除其解码器——必须在 setNetworkFacade（即 MeetingController::onMemberLeaveFromNetwork
+    // 连接）之前注册，确保此 lambda 先执行，此时仓库内还能查到该成员的 numericId。
+    QObject::connect(m_networkFacade.get(), &NetworkFacade::memberLeft,
+                     [this](const QString &userId) {
+        auto *repo = m_participantRepo.get();
+        if (repo) {
+            const auto parts = repo->sortedParticipants();
+            for (const auto &p : parts) {
+                if (p.userId == userId && p.numericId != 0) {
+                    m_mediaEngine->removeUserDecoder(QString::number(p.numericId));
+                    return;
+                }
+            }
+        }
+        m_mediaEngine->removeUserDecoder(userId);
+    });
+
     m_meetingCtrl->setNetworkFacade(m_networkFacade.get());
     m_chatService->setNetworkFacade(m_networkFacade.get());
 
@@ -48,15 +67,18 @@ void AppContext::setup()
     m_mediaEngine = std::make_unique<MediaEngine>();
     m_mediaEngine->setNetworkFacade(m_networkFacade.get(), QString{});
 
-    // 进入会议时同步本地 userId 到媒体引擎。
+    // 进入会议时同步本地 numericId 到媒体引擎，并向服务器注册 UDP 地址。
     QObject::connect(m_meetingCtrl.get(), &MeetingController::meetingEntered,
                      m_mediaEngine.get(), [this](const RoomInfo &) {
-        m_mediaEngine->setLocalUserId(m_meetingCtrl->localUserId());
+        const quint32 nid = m_meetingCtrl->localNumericId();
+        m_mediaEngine->setLocalNumericId(nid);
+        auto *media = m_networkFacade->mediaClient();
+        if (media) media->sendUdpRegistration(nid);
     });
 
-    // 成员离开时移除其对应的视频解码器。
-    QObject::connect(m_networkFacade.get(), &NetworkFacade::memberLeft,
-                     m_mediaEngine.get(),   &MediaEngine::removeUserDecoder);
+    // 收到关键帧请求时强制编码器输出 IDR 帧。
+    QObject::connect(m_networkFacade.get(), &NetworkFacade::keyframeRequested,
+                     m_mediaEngine.get(),   &MediaEngine::forceVideoKeyFrame);
 
     // 离开/关闭会议时停止媒体采集。
     QObject::connect(m_meetingCtrl.get(), &MeetingController::meetingExited,

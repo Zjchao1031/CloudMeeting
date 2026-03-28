@@ -1,6 +1,9 @@
 #pragma once
 #include "media/capture/IVideoCaptureStrategy.h"
-#include <QThread>
+#include <QMediaCaptureSession>
+#include <QScreenCapture>
+#include <QVideoSink>
+#include <QMetaObject>
 #include <atomic>
 
 /**
@@ -10,7 +13,11 @@
 
 /**
  * @class ScreenCaptureStrategy
- * @brief 封装基于 FFmpeg gdigrab 的全屏截图采集策略，运行于独立线程。
+ * @brief 封装基于 Qt Multimedia QScreenCapture 的全屏采集策略。
+ *
+ * Qt Multimedia 对象全部在主线程构造与析构，start()/stop() 均从主线程调用，
+ * 帧回调通过 Qt::DirectConnection 在后端线程执行（仅做图像转换，不访问 Qt 对象），
+ * 彻底避免跨线程停止时的死锁问题。
  */
 class ScreenCaptureStrategy : public IVideoCaptureStrategy
 {
@@ -21,7 +28,7 @@ public:
     ScreenCaptureStrategy();
 
     /**
-     * @brief 析构并确保采集线程已停止。
+     * @brief 析构并确保采集已停止。
      */
     ~ScreenCaptureStrategy() override;
 
@@ -44,10 +51,14 @@ public:
 
 private:
     /**
-     * @brief 采集线程主循环：使用 gdigrab 捕获全屏并转换为 QImage。
+     * @brief 处理后端线程投递的视频帧（转换、缩放后调用回调）。
+     * @param[in] frame 原始视频帧。
      */
-    void captureLoop();
+    void onVideoFrame(const QVideoFrame &frame);
 
-    std::atomic<bool> m_running{false}; ///< 屏幕采集任务运行状态（线程安全）。
-    QThread           m_thread;          ///< 采集工作线程。
+    std::atomic<bool>       m_running{false};   ///< 采集运行状态（原子，线程安全）。
+    QMediaCaptureSession    m_session;           ///< 媒体采集会话。
+    QScreenCapture          m_screenCapture;     ///< 屏幕捕获对象（主线程生命周期）。
+    QVideoSink              m_videoSink;         ///< 接收原始视频帧。
+    QMetaObject::Connection m_connection;        ///< videoFrameChanged 连接句柄，用于 stop 时断开。
 };

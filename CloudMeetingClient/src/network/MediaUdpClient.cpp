@@ -148,6 +148,27 @@ void MediaUdpClient::onVideoDatagram()
     }
 }
 
+void MediaUdpClient::sendUdpRegistration(quint32 numericId)
+{
+    // 音频注册包：仅包头，无 Opus 载荷。服务端收到后记录 udpAudioAddr。
+    AudioPacketHeader audioHdr;
+    audioHdr.userId    = numericId;
+    audioHdr.timestamp = 0;
+    audioHdr.sequence  = 0;
+    const QByteArray audioPkt = PacketCodec::encodeAudio(audioHdr, QByteArray{});
+    m_audioUdp.writeDatagram(audioPkt, QHostAddress(m_serverHost), m_audioPort);
+
+    // 视频注册包：仅包头，无 H.264 载荷。服务端收到后记录 udpVideoAddr。
+    VideoPacketHeader videoHdr;
+    videoHdr.userId    = numericId;
+    videoHdr.timestamp = 0;
+    videoHdr.sequence  = 0;
+    videoHdr.flags     = 0;
+    videoHdr.fragIndex = 0;
+    const QByteArray videoPkt = PacketCodec::encodeVideo(videoHdr, QByteArray{});
+    m_videoUdp.writeDatagram(videoPkt, QHostAddress(m_serverHost), m_videoPort);
+}
+
 void MediaUdpClient::onGcTimer()
 {
     constexpr qint64 TIMEOUT_MS  = 2000; ///< 分片重组超时阈值。

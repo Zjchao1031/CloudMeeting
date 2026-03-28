@@ -96,16 +96,20 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
     case SignalType::CREATE_ROOM_ACK: {
         const bool    ok  = payload["success"].toBool();
         const QString rid = payload["room_id"].toString();
+        const QString uid = payload["user_id"].toString();
+        const quint32 nid = payload["numeric_id"].toVariant().toUInt();
         const QString err = payload["error"].toString();
-        emit createRoomAck(ok, rid, err);
+        emit createRoomAck(ok, rid, uid, nid, err);
         break;
     }
     case SignalType::JOIN_ROOM_ACK: {
         const bool    ok   = payload["success"].toBool();
         const QString rid  = payload["room_id"].toString();
         const QString host = payload["host_user_id"].toString();
+        const QString uid  = payload["user_id"].toString();
+        const quint32 nid  = payload["numeric_id"].toVariant().toUInt();
         const QString err  = payload["error"].toString();
-        emit joinRoomAck(ok, rid, host, err);
+        emit joinRoomAck(ok, rid, host, uid, nid, err);
         break;
     }
     case SignalType::ROOM_CLOSED:
@@ -122,6 +126,9 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
         break;
     case SignalType::CHAT_BROADCAST:
         emit chatBroadcast(payload);
+        break;
+    case SignalType::REQUEST_KEYFRAME:
+        emit keyframeRequested();
         break;
     default:
         break;

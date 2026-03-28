@@ -39,9 +39,11 @@ void JoinRoomHandler::handle(int fd, const std::string &payload)
     ack["success"]       = true;
     ack["room_id"]       = roomId;
     ack["host_user_id"]  = room->hostUserId;
+    ack["user_id"]       = self->userId;
+    ack["numeric_id"]    = self->numericId;
     BroadcastService::instance().sendTo(fd, SignalType::JOIN_ROOM_ACK, ack.dump());
 
-    // 将已有成员信息逐条推送给新成员
+    // 将已有成员信息逐条推送给新成员（含媒体状态和 numeric_id）
     for (const auto &uid : room->memberIds) {
         if (uid == self->userId) continue;
         ClientSession *member = SessionManager::instance().findSession(uid);
@@ -51,6 +53,10 @@ void JoinRoomHandler::handle(int fd, const std::string &payload)
         mj["nickname"]      = member->nickname;
         mj["avatar_base64"] = member->avatarBase64;
         mj["is_host"]       = room->isHost(uid);
+        mj["numeric_id"]    = member->numericId;
+        mj["camera"]        = member->cameraOn;
+        mj["microphone"]    = member->micOn;
+        mj["screen_share"]  = member->screenOn;
         BroadcastService::instance().sendTo(fd, SignalType::MEMBER_JOIN, mj.dump());
     }
 

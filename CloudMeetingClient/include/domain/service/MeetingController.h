@@ -132,10 +132,16 @@ public:
     const RoomInfo &currentRoom() const;
 
     /**
-     * @brief 获取服务器分配给本地用户的 ID。
-     * @return 本地用户 ID 字符串；若尚未进入会议则返回空字符串。
+     * @brief 获取服务器分配给本地用户的 UUID。
+     * @return 本地用户 UUID 字符串；若尚未进入会议则返回空字符串。
      */
     QString localUserId() const;
+
+    /**
+     * @brief 获取服务器分配给本地用户的数字 ID（用于 UDP 媒体包头标识）。
+     * @return 本地用户数字 ID；若尚未进入会议则返回 0。
+     */
+    quint32 localNumericId() const;
 
 signals:
     /**
@@ -187,19 +193,27 @@ private slots:
      * @brief 处理创建会议响应。
      * @param[in] success 是否创建成功。
      * @param[in] roomId  创建成功的房间号。
+     * @param[in] userId  服务器分配的本地用户 UUID。
+     * @param[in] numericId 服务器分配的本地用户数字 ID。
      * @param[in] errorMsg 失败原因。
      */
-    void onCreateRoomAck(bool success, const QString &roomId, const QString &errorMsg);
+    void onCreateRoomAck(bool success, const QString &roomId,
+                         const QString &userId, quint32 numericId,
+                         const QString &errorMsg);
 
     /**
      * @brief 处理加入会议响应。
      * @param[in] success 是否加入成功。
      * @param[in] roomId 加入的房间号。
      * @param[in] hostUserId 主持人用户 ID。
+     * @param[in] userId  服务器分配的本地用户 UUID。
+     * @param[in] numericId 服务器分配的本地用户数字 ID。
      * @param[in] errorMsg 失败原因。
      */
     void onJoinRoomAck(bool success, const QString &roomId,
-                       const QString &hostUserId, const QString &errorMsg);
+                       const QString &hostUserId,
+                       const QString &userId, quint32 numericId,
+                       const QString &errorMsg);
 
     /**
      * @brief 处理来自网络的成员加入通知。
@@ -231,11 +245,12 @@ private:
      */
     void setState(MeetingState s);
 
-    MeetingState            m_state   = MeetingState::Idle; ///< 当前状态机状态。
-    NetworkFacade          *m_network = nullptr;            ///< 当前绑定的网络通信问面。
-    ParticipantRepository  *m_repo    = nullptr;            ///< 参会者数据仓库。
-    RoomInfo                m_currentRoom;                  ///< 当前会议房间信息缓存。
-    QString                 m_localUserId;                  ///< 当前用户在服务器分配的 userId。
+    MeetingState            m_state         = MeetingState::Idle; ///< 当前状态机状态。
+    NetworkFacade          *m_network       = nullptr;            ///< 当前绑定的网络通信门面。
+    ParticipantRepository  *m_repo          = nullptr;            ///< 参会者数据仓库。
+    RoomInfo                m_currentRoom;                        ///< 当前会议房间信息缓存。
+    QString                 m_localUserId;                        ///< 当前用户在服务器分配的 UUID。
+    quint32                 m_localNumericId = 0;                 ///< 当前用户在服务器分配的数字 ID（UDP 包头用）。
 
     // 缓存待发运作类型：0=无，1=创建，2=加入。
     int                     m_pendingAction = 0;
