@@ -13,15 +13,15 @@ void MediaStateHandler::handle(int fd, const std::string &payload)
     ClientSession *session = SessionManager::instance().findSessionByFd(fd);
     if (!session) return;
 
-    session->cameraOn = j.value("camera", session->cameraOn);
-    session->micOn    = j.value("mic",    session->micOn);
-    session->screenOn = j.value("screen", session->screenOn);
+    session->cameraOn = j.value("camera",       session->cameraOn);
+    session->micOn    = j.value("microphone",   session->micOn);
+    session->screenOn = j.value("screen_share", session->screenOn);
 
     nlohmann::json sync;
-    sync["user_id"] = session->userId;
-    sync["camera"]  = session->cameraOn;
-    sync["mic"]     = session->micOn;
-    sync["screen"]  = session->screenOn;
+    sync["user_id"]       = session->userId;
+    sync["camera"]        = session->cameraOn;
+    sync["microphone"]    = session->micOn;
+    sync["screen_share"]  = session->screenOn;
 
     BroadcastService::instance().broadcastToRoom(
         session->roomId, SignalType::MEDIA_STATE_SYNC, sync.dump(), fd);

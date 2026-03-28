@@ -15,7 +15,7 @@ namespace Constants
      * @name 服务器地址
      * @{
      */
-    inline constexpr const char *DEFAULT_SERVER_HOST = "127.0.0.1"; ///< 默认信令服务器地址。
+    inline constexpr const char *DEFAULT_SERVER_HOST = "192.168.88.129"; ///< 默认信令服务器地址。
     /**
      * @}
      */

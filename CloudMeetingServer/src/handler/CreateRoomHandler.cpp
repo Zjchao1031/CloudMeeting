@@ -11,13 +11,14 @@ void CreateRoomHandler::handle(int fd, const std::string &payload)
     auto j = nlohmann::json::parse(payload, nullptr, false);
     if (j.is_discarded()) { Logger::warn("CreateRoom: invalid JSON"); return; }
 
-    std::string nickname    = j.value("nickname",     "Unknown");
-    int         maxMembers  = j.value("max_members",  10);
-    bool        hasPassword = j.value("has_password", false);
-    std::string password    = j.value("password",     "");
+    std::string nickname     = j.value("nickname",      "Unknown");
+    std::string avatarBase64 = j.value("avatar_base64", "");
+    int         maxMembers   = j.value("max_members",   10);
+    bool        hasPassword  = j.value("has_password",  false);
+    std::string password     = j.value("password",      "");
 
     std::string roomId = RoomService::instance().createRoom(
-        fd, maxMembers, hasPassword, password, nickname);
+        fd, maxMembers, hasPassword, password, nickname, avatarBase64);
 
     ClientSession *session = SessionManager::instance().findSessionByFd(fd);
     if (!session) return;

@@ -23,10 +23,11 @@ void ChatMessageHandler::handle(int fd, const std::string &payload)
     if (!session || session->roomId.empty()) return;
 
     nlohmann::json broadcast;
-    broadcast["user_id"]   = session->userId;
-    broadcast["nickname"]  = session->nickname;
-    broadcast["content"]   = content;
-    broadcast["timestamp"] = TimeUtil::nowSeconds();
+    broadcast["user_id"]       = session->userId;
+    broadcast["nickname"]      = session->nickname;
+    broadcast["avatar_base64"] = session->avatarBase64;
+    broadcast["content"]       = content;
+    broadcast["timestamp"]     = TimeUtil::nowSeconds();
 
     BroadcastService::instance().broadcastToRoom(
         session->roomId, SignalType::CHAT_BROADCAST, broadcast.dump());

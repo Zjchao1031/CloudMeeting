@@ -7,6 +7,7 @@ struct ClientSession
 {
     std::string userId;
     std::string nickname;
+    std::string avatarBase64;
     std::string roomId;
     int         tcpFd           = -1;
     uint32_t    numericId       = 0;   // UDP 包头中的 userId 字段

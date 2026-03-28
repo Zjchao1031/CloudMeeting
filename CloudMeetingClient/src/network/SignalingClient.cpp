@@ -5,15 +5,27 @@
 #include "network/SignalingClient.h"
 #include "network/PacketCodec.h"
 #include "common/Constants.h"
+#include "common/Logger.h"
 #include "protocol/SignalType.h"
 #include <QDataStream>
+#include <QHostAddress>
+#include <QNetworkProxy>
 
 SignalingClient::SignalingClient(QObject *parent)
     : QObject(parent)
 {
+    m_socket.setProxy(QNetworkProxy::NoProxy);
     connect(&m_socket, &QTcpSocket::connected,    this, &SignalingClient::onConnected);
     connect(&m_socket, &QTcpSocket::disconnected, this, &SignalingClient::onDisconnected);
     connect(&m_socket, &QTcpSocket::readyRead,    this, &SignalingClient::onReadyRead);
+
+    // [诊断] 监听 socket 错误信号。
+    connect(&m_socket, &QAbstractSocket::errorOccurred, this, [this](QAbstractSocket::SocketError err) {
+        Logger::error(QString("[SignalingClient] socket error: %1 (%2) state=%3")
+                      .arg(static_cast<int>(err))
+                      .arg(m_socket.errorString())
+                      .arg(static_cast<int>(m_socket.state())));
+    });
 
     // 周期性心跳发送定时器（每 5 秒）。
     m_heartbeatTimer.setInterval(Constants::HEARTBEAT_INTERVAL_MS);
@@ -46,6 +58,8 @@ SignalingClient::~SignalingClient()
 
 void SignalingClient::connectToServer(const QString &host, quint16 port)
 {
+    Logger::info(QString("[SignalingClient] connectToServer host=%1 port=%2 socketState=%3")
+                .arg(host).arg(port).arg(static_cast<int>(m_socket.state())));
     m_host              = host;
     m_port              = port;
     m_reconnectAttempts = 0;
@@ -71,6 +85,7 @@ void SignalingClient::sendPacket(quint8 type, const QJsonObject &payload)
 
 void SignalingClient::onConnected()
 {
+    Logger::info(QString("[SignalingClient] TCP connected to %1:%2").arg(m_host).arg(m_port));
     m_connectTimer.stop();
     bool wasReconnect   = m_wasConnected;
     m_wasConnected      = true;
@@ -148,6 +163,10 @@ void SignalingClient::handleReconnect()
 void SignalingClient::onConnectTimeout()
 {
     // 5 秒内未建立 TCP 连接，中止并通知上层。
+    Logger::error(QString("[SignalingClient] connect timeout! host=%1 port=%2 socketState=%3 error=%4")
+                 .arg(m_host).arg(m_port)
+                 .arg(static_cast<int>(m_socket.state()))
+                 .arg(m_socket.errorString()));
     m_socket.abort();
     emit connectTimeout();
 }

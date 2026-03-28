@@ -14,7 +14,8 @@ RoomService &RoomService::instance()
 
 std::string RoomService::createRoom(int fd, int maxMembers, bool hasPassword,
                                      const std::string &password,
-                                     const std::string &nickname)
+                                     const std::string &nickname,
+                                     const std::string &avatarBase64)
 {
     std::string userId = IdGenerator::generateUserId();
     std::string roomId = RoomManager::instance().createRoom(
@@ -23,6 +24,7 @@ std::string RoomService::createRoom(int fd, int maxMembers, bool hasPassword,
     ClientSession session;
     session.userId         = userId;
     session.nickname       = nickname;
+    session.avatarBase64   = avatarBase64;
     session.roomId         = roomId;
     session.tcpFd          = fd;
     session.numericId      = IdGenerator::generateNumericUserId();
@@ -35,7 +37,8 @@ std::string RoomService::createRoom(int fd, int maxMembers, bool hasPassword,
 
 int RoomService::joinRoom(int fd, const std::string &roomId,
                           const std::string &password,
-                          const std::string &nickname)
+                          const std::string &nickname,
+                          const std::string &avatarBase64)
 {
     Room *room = RoomManager::instance().findRoom(roomId);
     if (!room)             return 1; // 房间不存在
@@ -48,6 +51,7 @@ int RoomService::joinRoom(int fd, const std::string &roomId,
     ClientSession session;
     session.userId         = userId;
     session.nickname       = nickname;
+    session.avatarBase64   = avatarBase64;
     session.roomId         = roomId;
     session.tcpFd          = fd;
     session.numericId      = IdGenerator::generateNumericUserId();
