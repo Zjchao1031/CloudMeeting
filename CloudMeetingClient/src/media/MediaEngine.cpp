@@ -112,11 +112,11 @@ void MediaEngine::onCapturedVideoFrame(const QImage &frame, bool isCamera)
     if (h264.isEmpty() || !m_network) return;
 
     // 通过 UDP 发送——必须在主线程调用 QUdpSocket，使用队列连接切换线程。
-    quint32 uid    = m_localNumericId;
-    bool    screen = !isCamera;
-    QMetaObject::invokeMethod(this, [this, uid, h264, screen]() {
+    quint32 uid   = m_localNumericId;
+    bool    isCam = isCamera;
+    QMetaObject::invokeMethod(this, [this, uid, h264, isCam]() {
         if (m_network)
-            m_network->mediaClient()->sendVideoFrameFragments(uid, h264, screen);
+            m_network->mediaClient()->sendVideoFrameFragments(uid, h264, isCam);
     }, Qt::QueuedConnection);
 }
 
@@ -300,14 +300,43 @@ void MediaEngine::onRemoteAudioData(const QString &userId, const QByteArray &opu
         fmt.setSampleFormat(QAudioFormat::Int16);
 
         QAudioDevice dev = QMediaDevices::defaultAudioOutput();
-        if (dev.isFormatSupported(fmt)) {
-            m_audioSink = std::make_unique<QAudioSink>(dev, fmt);
-            m_audioIO = m_audioSink->start();
+
+        // 若设备不支持单声道，降级尝试双声道（写入时再将 PCM 上混）。
+        if (!dev.isFormatSupported(fmt)) {
+            fmt.setChannelCount(2);
+            Logger::warn(QStringLiteral("[MediaEngine] 输出设备不支持单声道，降级为双声道"));
+        }
+
+        m_audioSink = std::make_unique<QAudioSink>(dev, fmt);
+        m_audioIO   = m_audioSink->start();
+
+        if (m_audioSink->error() != QAudio::NoError || !m_audioIO) {
+            Logger::warn(QStringLiteral("[MediaEngine] 无法打开音频播放设备: %1").arg(dev.description()));
+            m_audioSink.reset();
+            m_audioIO = nullptr;
+        } else {
+            Logger::info(QStringLiteral("[MediaEngine] 音频播放已开始: %1Hz %2ch")
+                         .arg(fmt.sampleRate()).arg(fmt.channelCount()));
         }
     }
 
-    if (m_audioIO)
-        m_audioIO->write(pcm);
+    if (m_audioIO) {
+        // 若播放格式为双声道但解码 PCM 是单声道，执行上混。
+        const int sinkChannels = m_audioSink->format().channelCount();
+        if (sinkChannels == 2 && Constants::AUDIO_CHANNELS == 1) {
+            QByteArray stereo(pcm.size() * 2, Qt::Uninitialized);
+            auto       *dst = reinterpret_cast<int16_t *>(stereo.data());
+            const auto *src = reinterpret_cast<const int16_t *>(pcm.constData());
+            const int   cnt = pcm.size() / 2;
+            for (int i = 0; i < cnt; ++i) {
+                dst[i * 2]     = src[i];
+                dst[i * 2 + 1] = src[i];
+            }
+            m_audioIO->write(stereo);
+        } else {
+            m_audioIO->write(pcm);
+        }
+    }
 }
 
 // ─── 音量控制 ─────────────────────────────────────────────────

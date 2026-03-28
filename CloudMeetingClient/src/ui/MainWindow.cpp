@@ -289,6 +289,12 @@ void MainWindow::bindServices()
                 auto *ne = AppContext::instance().networkFacade();
                 if (ne) ne->sendMediaState(camera, mic, screen);
 
+                // 本地仓库同步更新：服务器不会将 MEDIA_STATE_SYNC 回送给发送者，
+                // 需手动更新本地用户在 ParticipantRepository 中的媒体状态，
+                // 以确保参会者列表右侧图标能即时反映本地用户的切换操作。
+                m_meetingCtrl->onMediaStateSync(
+                    m_meetingCtrl->localUserId(), camera, mic, screen);
+
                 auto *me = AppContext::instance().mediaEngine();
                 auto *dm = AppContext::instance().deviceManager();
                 if (!me) return;
@@ -452,6 +458,10 @@ void MainWindow::onRoomClosed()
 {
     m_chatSvc->clearMessages();
     m_meetingWindow->showRoomClosedDialog();
+    // onRoomClosedFromNetwork() 已将状态置为 Idle，leaveRoom() 会提前返回不再 emit meetingExited()，
+    // 需在此直接切换回主界面，不依赖 leaveRequested → leaveRoom → meetingExited 链路。
+    auto *stack = qobject_cast<QStackedWidget*>(centralWidget());
+    if (stack) stack->setCurrentIndex(0);
 }
 
 void MainWindow::onErrorOccurred(const QString &title, const QString &message)

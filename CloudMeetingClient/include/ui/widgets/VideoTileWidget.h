@@ -49,10 +49,17 @@ protected:
     void paintEvent(QPaintEvent *event) override;
 
     /**
-     * @brief 处理尺寸变化事件并维持视频比例。
-     * @param[in] event 当前尺寸变化事件对象。
+     * @brief 告知布局系统本控件的高度依赖宽度。
+     * @return 始终返回 true。
      */
-    void resizeEvent(QResizeEvent *event) override;
+    bool hasHeightForWidth() const override;
+
+    /**
+     * @brief 根据给定宽度按 16:9 计算控件高度。
+     * @param[in] w 控件当前宽度。
+     * @return 16:9 比例对应的高度。
+     */
+    int heightForWidth(int w) const override;
 
 private:
     QString m_userId;   ///< 当前视频所属用户标识。

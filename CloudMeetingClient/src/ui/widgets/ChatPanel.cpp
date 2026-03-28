@@ -5,7 +5,9 @@
 #include "ui/widgets/ChatPanel.h"
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QByteArray>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QKeyEvent>
@@ -145,11 +147,11 @@ void ChatPanel::clearMessages()
 }
 
 void ChatPanel::appendMessage(const QString &userId, const QString &nickname,
-                              const QString &content)
+                              const QString &content, const QString &avatarBase64)
 {
     Q_UNUSED(userId)
     int idx = m_messagesLayout->count() - 1; // 在尾部弹性项之前插入新消息。
-    m_messagesLayout->insertWidget(idx, makeBubble(nickname, content));
+    m_messagesLayout->insertWidget(idx, makeBubble(nickname, content, avatarBase64));
     QTimer::singleShot(0, this, &ChatPanel::scrollToBottom);
 }
 
@@ -181,7 +183,8 @@ void ChatPanel::scrollToBottom()
     sb->setValue(sb->maximum());
 }
 
-QWidget* ChatPanel::makeBubble(const QString &nickname, const QString &content)
+QWidget* ChatPanel::makeBubble(const QString &nickname, const QString &content,
+                               const QString &avatarBase64)
 {
     auto *bubble = new QWidget(m_messagesContainer);
     bubble->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
@@ -191,10 +194,31 @@ QWidget* ChatPanel::makeBubble(const QString &nickname, const QString &content)
     row->setSpacing(10);
     row->setAlignment(Qt::AlignTop);
 
-    // 头像区域。
+    // 头像区域：优先使用真实头像，否则使用首字符占位。
     auto *avatarLabel = new QLabel(bubble);
     avatarLabel->setFixedSize(40, 40);
-    avatarLabel->setPixmap(makeAvatarPix(nickname, 40));
+    QImage avatarImg;
+    if (!avatarBase64.isEmpty()) {
+        QByteArray raw = QByteArray::fromBase64(avatarBase64.toUtf8());
+        avatarImg.loadFromData(raw, "PNG");
+    }
+    if (!avatarImg.isNull()) {
+        QPixmap scaled = QPixmap::fromImage(avatarImg).scaled(
+            40, 40, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        QPixmap result(40, 40);
+        result.fill(Qt::transparent);
+        QPainter painter(&result);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPainterPath clip;
+        clip.addEllipse(QRectF(0, 0, 40, 40));
+        painter.setClipPath(clip);
+        int ox = (scaled.width()  - 40) / 2;
+        int oy = (scaled.height() - 40) / 2;
+        painter.drawPixmap(0, 0, 40, 40, scaled, ox, oy, 40, 40);
+        avatarLabel->setPixmap(result);
+    } else {
+        avatarLabel->setPixmap(makeAvatarPix(nickname, 40));
+    }
     avatarLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     row->addWidget(avatarLabel, 0, Qt::AlignTop);
 

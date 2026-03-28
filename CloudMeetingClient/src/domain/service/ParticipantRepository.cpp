@@ -4,6 +4,7 @@
  */
 #include "domain/service/ParticipantRepository.h"
 #include <algorithm>
+#include <QByteArray>
 
 ParticipantRepository::ParticipantRepository(QObject *parent)
     : QObject(parent)
@@ -11,7 +12,12 @@ ParticipantRepository::ParticipantRepository(QObject *parent)
 
 void ParticipantRepository::upsertParticipant(const Participant &p)
 {
-    m_participants[p.userId] = p;
+    Participant stored = p;
+    if (stored.avatar.isNull() && !stored.avatarBase64.isEmpty()) {
+        QByteArray raw = QByteArray::fromBase64(stored.avatarBase64.toUtf8());
+        stored.avatar.loadFromData(raw, "PNG");
+    }
+    m_participants[p.userId] = stored;
     emit participantsChanged();
 }
 

@@ -400,7 +400,7 @@ void MeetingWindow::onParticipantsChanged()
 
 void MeetingWindow::onNewChatMessage(const ChatMessage &msg)
 {
-    m_chatPanel->appendMessage(msg.userId, msg.nickname, msg.content);
+    m_chatPanel->appendMessage(msg.userId, msg.nickname, msg.content, msg.avatarBase64);
 }
 
 void MeetingWindow::showRoomClosedDialog()

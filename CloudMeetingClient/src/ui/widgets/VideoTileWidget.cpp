@@ -10,14 +10,28 @@
 VideoTileWidget::VideoTileWidget(QWidget *parent)
     : QWidget(parent)
 {
-    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setMinimumHeight(120);
+    // 启用 heightForWidth 模式，布局系统将自动按 16:9 分配高度，
+    // 无需在 resizeEvent 中调用 setFixedHeight（会引发递归布局循环导致崩溃）。
+    QSizePolicy sp(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    sp.setHeightForWidth(true);
+    setSizePolicy(sp);
+    setMinimumHeight(60);
 }
 
 QSize VideoTileWidget::sizeHint() const
 {
     int w = width() > 0 ? width() : 320;
-    return QSize(w, w * 9 / 16);
+    return QSize(w, heightForWidth(w));
+}
+
+bool VideoTileWidget::hasHeightForWidth() const
+{
+    return true;
+}
+
+int VideoTileWidget::heightForWidth(int w) const
+{
+    return qMax(w * 9 / 16, 60);
 }
 
 void VideoTileWidget::updateFrame(const QImage &frame)
@@ -32,20 +46,14 @@ void VideoTileWidget::setWatermark(const QString &nickname)
     update();
 }
 
-void VideoTileWidget::resizeEvent(QResizeEvent *event)
-{
-    QWidget::resizeEvent(event);
-    // 按 16:9 比例维护控件高度。
-    int h = event->size().width() * 9 / 16;
-    setFixedHeight(h);
-}
-
 void VideoTileWidget::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
     QRect r = rect();
+    // 尺寸过小时跳过绘制，避免在窗口过渡状态下产生无效渲染。
+    if (r.width() < 4 || r.height() < 4) return;
     int radius = 12;
 
     // 设置圆角裁剪区域。

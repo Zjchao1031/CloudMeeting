@@ -29,7 +29,7 @@ public:
      * @param[in] nickname 发送者显示昵称。
      * @param[in] content 消息文本内容。
      */
-    void appendMessage(const QString &userId, const QString &nickname, const QString &content);
+    void appendMessage(const QString &userId, const QString &nickname, const QString &content, const QString &avatarBase64 = {});
 
     /**
      * @brief 清空所有聊天消息。
@@ -61,7 +61,7 @@ private:
      * @param[in] content 消息内容。
      * @return 消息气泡控件指针。
      */
-    QWidget* makeBubble(const QString &nickname, const QString &content);
+    QWidget* makeBubble(const QString &nickname, const QString &content, const QString &avatarBase64);
 
     /**
      * @brief 将消息滚动区域滚动到最底部。
