@@ -66,6 +66,7 @@ void JoinRoomHandler::handle(int fd, const std::string &payload)
     newMember["nickname"]      = self->nickname;
     newMember["avatar_base64"] = self->avatarBase64;
     newMember["is_host"]       = false;
+    newMember["numeric_id"]    = self->numericId;
     BroadcastService::instance().broadcastToRoom(
         roomId, SignalType::MEMBER_JOIN, newMember.dump(), fd);
 }

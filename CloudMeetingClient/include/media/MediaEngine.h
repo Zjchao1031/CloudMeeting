@@ -227,4 +227,8 @@ private:
     // 音量控制（主线程写、音频采集线程读，需原子操作）。
     std::atomic<int> m_captureVolume{100};  ///< 采集音量（0~100）。
     std::atomic<int> m_playbackVolume{100}; ///< 播放音量（0~100）。
+
+    // 帧率节流：记录各路流上次处理帧的时间戳（后端线程读写，需原子操作）。
+    std::atomic<qint64> m_lastCameraFrameMs{0}; ///< 摄像头流上次处理帧的毫秒时间戳。
+    std::atomic<qint64> m_lastScreenFrameMs{0}; ///< 屏幕共享流上次处理帧的毫秒时间戳。
 };

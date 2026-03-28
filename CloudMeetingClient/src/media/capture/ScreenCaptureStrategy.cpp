@@ -69,7 +69,7 @@ void ScreenCaptureStrategy::onVideoFrame(const QVideoFrame &frame)
     // 缩放到目标分辨率并统一为 RGB32。
     if (img.width() != Constants::VIDEO_WIDTH || img.height() != Constants::VIDEO_HEIGHT)
         img = img.scaled(Constants::VIDEO_WIDTH, Constants::VIDEO_HEIGHT,
-                         Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                         Qt::IgnoreAspectRatio, Qt::FastTransformation);
 
     if (img.format() != QImage::Format_RGB32)
         img = img.convertToFormat(QImage::Format_RGB32);

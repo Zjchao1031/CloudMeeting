@@ -336,6 +336,10 @@ void MainWindow::bindServices()
         connect(nf, &NetworkFacade::memberLeft,
                 m_meetingWindow, &MeetingWindow::onUserLeft);
 
+        // 远端媒体状态变化 -> MeetingWindow 清除已关闭流的 Tile，防止帧残留。
+        connect(nf, &NetworkFacade::mediaStateSynced,
+                m_meetingWindow, &MeetingWindow::onRemoteMediaStateSynced);
+
         // 成员加入时的关键帧协商：
         // 1. 若新加入的成员已在广播（我们是后来者收到已有成员信息），向其请求关键帧。
         // 2. 若我方正在广播（新成员加入），强制输出关键帧让新成员能开始解码。

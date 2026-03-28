@@ -300,9 +300,11 @@ void MeetingWindow::removeTile(const QString &key)
 
 void MeetingWindow::onRemoteVideoFrame(const QString &userId, const QImage &frame, bool isCamera)
 {
+    const QString key = isCamera ? userId + QStringLiteral("_cam") : userId + QStringLiteral("_scr");
+    // 流已关闭时丢弃 UDP 残包，防止残包重建 Tile 导致帧残留。
+    if (m_suppressedTileKeys.contains(key)) return;
     const QString nickname = m_userNicknames.value(userId, userId);
     const QString label = isCamera ? nickname : nickname + QStringLiteral("（屏幕共享）");
-    const QString key   = isCamera ? userId + QStringLiteral("_cam") : userId + QStringLiteral("_scr");
     renderToTile(key, frame, label, false);
 }
 
@@ -321,10 +323,47 @@ void MeetingWindow::onLocalVideoFrame(const QImage &frame, bool isCamera)
 
 void MeetingWindow::onUserLeft(const QString &userId)
 {
+    // Tile key 以 numericId 字符串为准（与 UDP 帧路径一致）。
+    const quint32 nid = m_userNumericIds.value(userId, 0);
+    const QString tilePrefix = (nid != 0) ? QString::number(nid) : userId;
+
     // 同时移除摄像头流和屏幕共享流两个 Tile。
-    removeTile(userId + QStringLiteral("_cam"));
-    removeTile(userId + QStringLiteral("_scr"));
+    removeTile(tilePrefix + QStringLiteral("_cam"));
+    removeTile(tilePrefix + QStringLiteral("_scr"));
+    m_suppressedTileKeys.remove(tilePrefix + QStringLiteral("_cam"));
+    m_suppressedTileKeys.remove(tilePrefix + QStringLiteral("_scr"));
     m_userNicknames.remove(userId);
+    m_userNicknames.remove(tilePrefix);
+    m_userNumericIds.remove(userId);
+}
+
+void MeetingWindow::onRemoteMediaStateSynced(QJsonObject payload)
+{
+    const QString uid    = payload[QStringLiteral("user_id")].toString();
+    const bool    camera = payload[QStringLiteral("camera")].toBool();
+    const bool    screen = payload[QStringLiteral("screen_share")].toBool();
+    if (uid.isEmpty()) return;
+
+    // Tile key 必须与 UDP 帧路径保持一致：以 numericId 字符串为前缀。
+    const quint32 nid = m_userNumericIds.value(uid, 0);
+    const QString tilePrefix = (nid != 0) ? QString::number(nid) : uid;
+    const QString camKey = tilePrefix + QStringLiteral("_cam");
+    const QString scrKey = tilePrefix + QStringLiteral("_scr");
+
+    // 流已关闭：加入压制集合并删除 Tile，阻断后续 UDP 残包重建 Tile。
+    // 流重新开启：移出压制集合，恢复帧渲染。
+    if (!camera) {
+        m_suppressedTileKeys.insert(camKey);
+        removeTile(camKey);
+    } else {
+        m_suppressedTileKeys.remove(camKey);
+    }
+    if (!screen) {
+        m_suppressedTileKeys.insert(scrKey);
+        removeTile(scrKey);
+    } else {
+        m_suppressedTileKeys.remove(scrKey);
+    }
 }
 
 void MeetingWindow::onParticipantsChanged()
@@ -335,11 +374,13 @@ void MeetingWindow::onParticipantsChanged()
     const auto participants = repo->sortedParticipants();
     m_participantList->updateFromParticipants(participants);
 
-    // 同步更新昵称映射（UUID 和 numericId 字符串均作为 key），并刷新已有 tile 的水印。
+    // 同步更新昵称映射（UUID 和 numericId 字符串均作为 key），并维护 UUID → numericId 映射表。
     for (const auto &p : participants) {
         m_userNicknames[p.userId] = p.nickname;
-        if (p.numericId != 0)
+        if (p.numericId != 0) {
             m_userNicknames[QString::number(p.numericId)] = p.nickname;
+            m_userNumericIds[p.userId] = p.numericId;
+        }
     }
 
     for (auto it = m_videoTiles.begin(); it != m_videoTiles.end(); ++it) {

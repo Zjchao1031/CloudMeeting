@@ -15,6 +15,7 @@
 #include "common/Logger.h"
 #include <QAudioFormat>
 #include <QAudioDevice>
+#include <QDateTime>
 
 MediaEngine::MediaEngine(QObject *parent)
     : QObject(parent)
@@ -95,6 +96,13 @@ void MediaEngine::stopScreenShare()
 
 void MediaEngine::onCapturedVideoFrame(const QImage &frame, bool isCamera)
 {
+    // 在后端线程内做帧率节流，避免超频帧以 QueuedConnection 泛洪主线程事件队列。
+    constexpr qint64 kFrameIntervalMs = 1000 / Constants::VIDEO_FPS;
+    auto &lastMs = isCamera ? m_lastCameraFrameMs : m_lastScreenFrameMs;
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (now - lastMs.load(std::memory_order_relaxed) < kFrameIntervalMs) return;
+    lastMs.store(now, std::memory_order_relaxed);
+
     // 发送本地预览信号（携带来源类型，供显示层区分渲染）。
     emit localVideoFrame(frame, isCamera);
 

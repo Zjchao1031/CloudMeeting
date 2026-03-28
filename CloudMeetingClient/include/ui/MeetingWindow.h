@@ -8,8 +8,10 @@
 #include <QVBoxLayout>
 #include <QSplitter>
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <QImage>
+#include <QJsonObject>
 
 class ParticipantListWidget;
 class ChatPanel;
@@ -84,6 +86,12 @@ public slots:
      * @param[in] userId 离开成员的用户 ID。
      */
     void onUserLeft(const QString &userId);
+
+    /**
+     * @brief 收到远端媒体状态同步通知时，移除已关闭流的视频 Tile，防止帧残留。
+     * @param[in] payload 包含媒体状态信息的 JSON 载荷。
+     */
+    void onRemoteMediaStateSynced(QJsonObject payload);
 
 signals:
     /**
@@ -171,7 +179,9 @@ private:
     bool                   m_screenShareOn = false;     ///< 本地屏幕共享状态。
 
     // 视频 Tile 动态管理。
-    QHash<QString, VideoTileWidget*> m_videoTiles;     ///< 用户 ID → 视频卡片控件映射表。
-    QHash<QString, qint64>           m_lastFrameTime;  ///< 用户 ID → 上次渲染时间戳（用于 24fps 节流）。
-    QHash<QString, QString>          m_userNicknames;  ///< 用户 ID → 显示昵称映射表。
+    QHash<QString, VideoTileWidget*> m_videoTiles;         ///< 用户 ID → 视频卡片控件映射表。
+    QHash<QString, qint64>           m_lastFrameTime;    ///< 用户 ID → 上次渲染时间戳（用于 24fps 节流）。
+    QHash<QString, QString>          m_userNicknames;    ///< 用户 ID → 显示昵称映射表（UUID 与 numericId 字符串均作为键）。
+    QHash<QString, quint32>          m_userNumericIds;   ///< UUID → numericId 映射表，用于将 TCP 信令中的 UUID 转换为 Tile key 所用的数字字符串。
+    QSet<QString>                    m_suppressedTileKeys; ///< 已关闭的远端流 key 集合，阻断 UDP 残包重建 Tile。
 };
