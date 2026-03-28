@@ -16,6 +16,11 @@ QString profileFilePath()
 void UserProfileService::load()
 {
     QSettings s(profileFilePath(), QSettings::IniFormat);
+
+    // 加载服务器配置。
+    m_serverHost    = s.value("Server/host",    "192.168.88.129").toString();
+    m_serverTcpPort = static_cast<quint16>(s.value("Server/tcpPort", 9000).toUInt());
+
     m_nickname = s.value("nickname", "用户").toString();
 
     // 从持久化存储加载头像 Base64 数据。
@@ -47,6 +52,11 @@ void UserProfileService::load()
 void UserProfileService::save()
 {
     QSettings s(profileFilePath(), QSettings::IniFormat);
+
+    // 保存服务器配置。
+    s.setValue("Server/host",    m_serverHost);
+    s.setValue("Server/tcpPort", m_serverTcpPort);
+
     s.setValue("nickname", m_nickname);
     s.setValue("avatarBase64", m_avatarBase64);
 }
@@ -71,6 +81,11 @@ void UserProfileService::setAvatar(const QImage &img)
 }
 
 QString UserProfileService::avatarBase64() const { return m_avatarBase64; }
+
+QString UserProfileService::serverHost() const { return m_serverHost; }
+void    UserProfileService::setServerHost(const QString &host) { m_serverHost = host; }
+quint16 UserProfileService::serverTcpPort() const { return m_serverTcpPort; }
+void    UserProfileService::setServerTcpPort(quint16 port) { m_serverTcpPort = port; }
 
 QImage UserProfileService::cropAndScale(const QImage &src)
 {

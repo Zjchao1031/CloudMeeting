@@ -86,8 +86,12 @@ void AppContext::setup()
     QObject::connect(m_meetingCtrl.get(), &MeetingController::roomClosed,
                      m_mediaEngine.get(),  &MediaEngine::stopAll);
 
-    // 加载用户资料（昵称 + 头像）。
+    // 加载用户资料（昵称 + 头像 + 服务器配置）。
     m_profileService->load();
+
+    // 将 profile.ini 中读取的服务器地址和端口注入会议控制器。
+    m_meetingCtrl->setServerConfig(m_profileService->serverHost(),
+                                   m_profileService->serverTcpPort());
 }
 
 UserProfileService*    AppContext::userProfileService()    const { return m_profileService.get(); }

@@ -2,6 +2,7 @@
 #include "server/TcpSignalingServer.h"
 #include "server/UdpMediaServer.h"
 #include "common/Constants.h"
+#include "common/IniConfig.h"
 #include "common/Logger.h"
 #include <csignal>
 #include <thread>
@@ -27,12 +28,27 @@ void ServerApp::run()
 {
     Logger::info("CloudMeetingServer starting...");
 
-    if (!m_udpServer->start(Constants::UDP_AUDIO_UP_PORT, Constants::UDP_VIDEO_UP_PORT,
-                             Constants::UDP_AUDIO_DN_PORT, Constants::UDP_VIDEO_DN_PORT)) {
+    // 从 profile.ini 加载端口配置，文件不存在时使用 Constants:: 默认值。
+    IniConfig cfg;
+    cfg.load(CLOUDMEETING_SERVER_DIR "/profile.ini");
+
+    uint16_t tcpPort    = cfg.getUInt16("Server", "tcpPort",      Constants::TCP_SIGNAL_PORT);
+    uint16_t audioUp    = cfg.getUInt16("Server", "audioUpPort",  Constants::UDP_AUDIO_UP_PORT);
+    uint16_t videoUp    = cfg.getUInt16("Server", "videoUpPort",  Constants::UDP_VIDEO_UP_PORT);
+    uint16_t audioDn    = cfg.getUInt16("Server", "audioDnPort",  Constants::UDP_AUDIO_DN_PORT);
+    uint16_t videoDn    = cfg.getUInt16("Server", "videoDnPort",  Constants::UDP_VIDEO_DN_PORT);
+
+    Logger::info("Config: tcpPort=" + std::to_string(tcpPort)
+                 + " audioUp=" + std::to_string(audioUp)
+                 + " videoUp=" + std::to_string(videoUp)
+                 + " audioDn=" + std::to_string(audioDn)
+                 + " videoDn=" + std::to_string(videoDn));
+
+    if (!m_udpServer->start(audioUp, videoUp, audioDn, videoDn)) {
         Logger::error("UdpMediaServer failed to start");
         return;
     }
-    if (!m_tcpServer->start(Constants::TCP_SIGNAL_PORT)) {
+    if (!m_tcpServer->start(tcpPort)) {
         Logger::error("TcpSignalingServer failed to start");
         return;
     }

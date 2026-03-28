@@ -33,10 +33,15 @@ set(SERVER_SOURCES
     src/common/Logger.cpp
     src/common/TimeUtil.cpp
     src/common/IdGenerator.cpp
+    src/common/IniConfig.cpp
 )
 
 add_executable(CloudMeetingServer ${SERVER_SOURCES})
 
+target_compile_definitions(CloudMeetingServer
+    PRIVATE
+        CLOUDMEETING_SERVER_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 target_link_libraries(CloudMeetingServer
     PRIVATE

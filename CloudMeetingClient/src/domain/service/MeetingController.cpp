@@ -43,6 +43,12 @@ void MeetingController::setParticipantRepository(ParticipantRepository *repo)
     m_repo = repo;
 }
 
+void MeetingController::setServerConfig(const QString &host, quint16 tcpPort)
+{
+    m_serverHost    = host;
+    m_serverTcpPort = tcpPort;
+}
+
 void MeetingController::createRoom(const CreateRoomOptions &opts)
 {
     if (m_state != MeetingState::Idle) {
@@ -60,8 +66,7 @@ void MeetingController::createRoom(const CreateRoomOptions &opts)
 
     // 发起 TCP 连接；连接成功后由 onServerConnected 发送 CREATE_ROOM 请求。
     if (m_network) {
-        m_network->connectToServer(QLatin1String(Constants::DEFAULT_SERVER_HOST),
-                                   Constants::TCP_SIGNAL_PORT);
+        m_network->connectToServer(m_serverHost, m_serverTcpPort);
     }
 }
 
@@ -82,8 +87,7 @@ void MeetingController::joinRoom(const JoinRoomOptions &opts)
 
     // 发起 TCP 连接；连接成功后由 onServerConnected 发送 JOIN_ROOM 请求。
     if (m_network) {
-        m_network->connectToServer(QLatin1String(Constants::DEFAULT_SERVER_HOST),
-                                   Constants::TCP_SIGNAL_PORT);
+        m_network->connectToServer(m_serverHost, m_serverTcpPort);
     }
 }
 

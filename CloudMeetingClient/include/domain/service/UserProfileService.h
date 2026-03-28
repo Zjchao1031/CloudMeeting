@@ -55,6 +55,30 @@ public:
      */
     QString avatarBase64() const;
 
+    /**
+     * @brief 获取服务器主机地址。
+     * @return 服务器 IP 或域名字符串。
+     */
+    QString serverHost() const;
+
+    /**
+     * @brief 设置服务器主机地址。
+     * @param[in] host 服务器 IP 或域名字符串。
+     */
+    void setServerHost(const QString &host);
+
+    /**
+     * @brief 获取信令服务器 TCP 端口。
+     * @return TCP 端口号。
+     */
+    quint16 serverTcpPort() const;
+
+    /**
+     * @brief 设置信令服务器 TCP 端口。
+     * @param[in] port TCP 端口号。
+     */
+    void setServerTcpPort(quint16 port);
+
 private:
     /**
      * @brief 将头像裁剪为正方形并缩放至 64x64 像素。
@@ -66,4 +90,6 @@ private:
     QString m_nickname;      ///< 当前用户昵称。
     QImage  m_avatar;        ///< 当前用户头像图像（64x64）。
     QString m_avatarBase64;  ///< 头像的 Base64 编码缓存。
+    QString m_serverHost;    ///< 服务器主机地址。
+    quint16 m_serverTcpPort = 9000; ///< 信令服务器 TCP 端口。
 };
