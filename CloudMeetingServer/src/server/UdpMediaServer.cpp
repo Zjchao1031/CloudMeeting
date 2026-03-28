@@ -4,6 +4,7 @@
 #include "common/Logger.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <cerrno>
@@ -91,7 +92,8 @@ void UdpMediaServer::audioRecvLoop()
         if (static_cast<size_t>(n) < sizeof(AudioPacketHeader)) continue;
 
         uint32_t userId;
-        std::memcpy(&userId, buf, sizeof(uint32_t)); // 包头首字段
+        std::memcpy(&userId, buf, sizeof(uint32_t)); // 包头首字段（大端序）
+        userId = ntohl(userId);                       // 转为主机字节序
         MediaForwardService::instance().forwardAudio(
             userId, buf, static_cast<size_t>(n), srcAddr);
     }
@@ -115,7 +117,8 @@ void UdpMediaServer::videoRecvLoop()
         if (static_cast<size_t>(n) < sizeof(VideoPacketHeader)) continue;
 
         uint32_t userId;
-        std::memcpy(&userId, buf.get(), sizeof(uint32_t));
+        std::memcpy(&userId, buf.get(), sizeof(uint32_t)); // 包头首字段（大端序）
+        userId = ntohl(userId);                             // 转为主机字节序
         MediaForwardService::instance().forwardVideo(
             userId, buf.get(), static_cast<size_t>(n), srcAddr);
     }
