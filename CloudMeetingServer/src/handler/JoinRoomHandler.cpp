@@ -4,6 +4,7 @@
 #include "domain/RoomManager.h"
 #include "domain/SessionManager.h"
 #include "protocol/SignalType.h"
+#include "common/Constants.h"
 #include "common/Logger.h"
 #include "json.hpp"
 
