@@ -3,7 +3,6 @@
  * @brief 实现用户资料持久化服务。
  */
 #include "domain/service/UserProfileService.h"
-#include "common/Constants.h"
 #include <QSettings>
 #include <QBuffer>
 
@@ -19,8 +18,10 @@ void UserProfileService::load()
     QSettings s(profileFilePath(), QSettings::IniFormat);
 
     // 加载服务器配置。
-    m_serverHost    = s.value("Server/host",    "").toString();
-    m_serverTcpPort = static_cast<quint16>(s.value("Server/tcpPort", Constants::TCP_SIGNAL_PORT).toUInt());
+    m_serverHost     = s.value("Server/host",         "").toString();
+    m_serverTcpPort  = static_cast<quint16>(s.value("Server/tcpPort",       0).toUInt());
+    m_udpAudioUpPort = static_cast<quint16>(s.value("Server/udpAudioUpPort", 0).toUInt());
+    m_udpVideoUpPort = static_cast<quint16>(s.value("Server/udpVideoUpPort", 0).toUInt());
 
     m_nickname = s.value("nickname", "用户").toString();
 
@@ -55,8 +56,10 @@ void UserProfileService::save()
     QSettings s(profileFilePath(), QSettings::IniFormat);
 
     // 保存服务器配置。
-    s.setValue("Server/host",    m_serverHost);
-    s.setValue("Server/tcpPort", m_serverTcpPort);
+    s.setValue("Server/host",         m_serverHost);
+    s.setValue("Server/tcpPort",      m_serverTcpPort);
+    s.setValue("Server/udpAudioUpPort", m_udpAudioUpPort);
+    s.setValue("Server/udpVideoUpPort", m_udpVideoUpPort);
 
     s.setValue("nickname", m_nickname);
     s.setValue("avatarBase64", m_avatarBase64);
@@ -87,6 +90,10 @@ QString UserProfileService::serverHost() const { return m_serverHost; }
 void    UserProfileService::setServerHost(const QString &host) { m_serverHost = host; }
 quint16 UserProfileService::serverTcpPort() const { return m_serverTcpPort; }
 void    UserProfileService::setServerTcpPort(quint16 port) { m_serverTcpPort = port; }
+quint16 UserProfileService::udpAudioUpPort() const { return m_udpAudioUpPort; }
+void    UserProfileService::setUdpAudioUpPort(quint16 port) { m_udpAudioUpPort = port; }
+quint16 UserProfileService::udpVideoUpPort() const { return m_udpVideoUpPort; }
+void    UserProfileService::setUdpVideoUpPort(quint16 port) { m_udpVideoUpPort = port; }
 
 QImage UserProfileService::cropAndScale(const QImage &src)
 {

@@ -85,6 +85,13 @@ public:
      */
     MediaUdpClient *mediaClient() const;
 
+    /**
+     * @brief 设置服务器没有下发端口时所用的默认 UDP 端口。
+     * @param[in] audioPort UDP 音频上行默认端口号。
+     * @param[in] videoPort UDP 视频上行默认端口号。
+     */
+    void setDefaultUdpPorts(quint16 audioPort, quint16 videoPort);
+
 signals:
     /**
      * @brief TCP 信令连接建立时发出。
@@ -185,4 +192,6 @@ private:
     QString           m_serverHost;              ///< 缓存服务器地址，供 ACK 后初始化 UDP 媒体使用。
     QJsonObject       m_lastJoinPayload;         ///< 缓存最近一次 JOIN_ROOM 载荷，用于重连恢复。
     bool              m_hasJoinCache = false;    ///< 是否存在待恢复的 JOIN_ROOM 缓存。
+    quint16           m_udpAudioUpPort = 0;      ///< UDP 音频上行默认端口（从 profile.ini 读取）。
+    quint16           m_udpVideoUpPort = 0;      ///< UDP 视频上行默认端口（从 profile.ini 读取）。
 };

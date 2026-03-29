@@ -6,7 +6,6 @@
 #include "network/SignalingClient.h"
 #include "network/MediaUdpClient.h"
 #include "protocol/SignalType.h"
-#include "common/Constants.h"
 
 NetworkFacade::NetworkFacade(QObject *parent)
     : QObject(parent)
@@ -103,9 +102,9 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
         const QString err = payload["error"].toString();
         if (ok) {
             const quint16 aPort = static_cast<quint16>(
-                payload["audio_up_port"].toInt(Constants::UDP_AUDIO_UP_PORT));
+                payload["audio_up_port"].toInt(m_udpAudioUpPort));
             const quint16 vPort = static_cast<quint16>(
-                payload["video_up_port"].toInt(Constants::UDP_VIDEO_UP_PORT));
+                payload["video_up_port"].toInt(m_udpVideoUpPort));
             m_media->init(m_serverHost, aPort, vPort);
         }
         emit createRoomAck(ok, rid, uid, nid, err);
@@ -120,9 +119,9 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
         const QString err  = payload["error"].toString();
         if (ok) {
             const quint16 aPort = static_cast<quint16>(
-                payload["audio_up_port"].toInt(Constants::UDP_AUDIO_UP_PORT));
+                payload["audio_up_port"].toInt(m_udpAudioUpPort));
             const quint16 vPort = static_cast<quint16>(
-                payload["video_up_port"].toInt(Constants::UDP_VIDEO_UP_PORT));
+                payload["video_up_port"].toInt(m_udpVideoUpPort));
             m_media->init(m_serverHost, aPort, vPort);
         }
         emit joinRoomAck(ok, rid, host, uid, nid, err);
@@ -149,6 +148,12 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
     default:
         break;
     }
+}
+
+void NetworkFacade::setDefaultUdpPorts(quint16 audioPort, quint16 videoPort)
+{
+    m_udpAudioUpPort = audioPort;
+    m_udpVideoUpPort = videoPort;
 }
 
 void NetworkFacade::onReconnected()

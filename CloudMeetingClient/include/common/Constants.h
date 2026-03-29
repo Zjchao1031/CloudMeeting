@@ -12,17 +12,6 @@
 namespace Constants
 {
     /**
-     * @name 网络端口
-     * @{
-     */
-    constexpr quint16 TCP_SIGNAL_PORT   = 9000;   ///< TCP 信令端口。
-    constexpr quint16 UDP_AUDIO_UP_PORT = 9001;   ///< UDP 音频上行端口。
-    constexpr quint16 UDP_VIDEO_UP_PORT = 9002;   ///< UDP 视频上行端口。
-    /**
-     * @}
-     */
-
-    /**
      * @name 心跳与重连
      * @{
      */

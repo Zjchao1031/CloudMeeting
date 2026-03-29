@@ -1,7 +1,6 @@
 #pragma once
 #include "domain/model/RoomInfo.h"
 #include "domain/model/Participant.h"
-#include "common/Constants.h"
 #include <QObject>
 #include <QString>
 #include <QJsonObject>
@@ -81,8 +80,11 @@ public:
      * @brief 设置服务器连接配置，替代默认硬编码地址。
      * @param[in] host 服务器主机地址。
      * @param[in] tcpPort 信令服务器 TCP 端口。
+     * @param[in] udpAudioUpPort UDP 音频上行端口。
+     * @param[in] udpVideoUpPort UDP 视频上行端口。
      */
-    void setServerConfig(const QString &host, quint16 tcpPort);
+    void setServerConfig(const QString &host, quint16 tcpPort,
+                         quint16 udpAudioUpPort, quint16 udpVideoUpPort);
 
     /**
      * @brief 发起创建会议请求。
@@ -256,8 +258,10 @@ private:
     MeetingState            m_state         = MeetingState::Idle; ///< 当前状态机状态。
     NetworkFacade          *m_network       = nullptr;            ///< 当前绑定的网络通信门面。
     ParticipantRepository  *m_repo          = nullptr;            ///< 参会者数据仓库。
-    QString                 m_serverHost;                                      ///< 信令服务器地址，从 profile.ini 注入。
-    quint16                 m_serverTcpPort = Constants::TCP_SIGNAL_PORT;       ///< 信令服务器 TCP 端口。
+    QString                 m_serverHost;                         ///< 信令服务器地址，从 profile.ini 注入。
+    quint16                 m_serverTcpPort     = 0;              ///< 信令服务器 TCP 端口（从 profile.ini 读取）。
+    quint16                 m_udpAudioUpPort    = 0;              ///< UDP 音频上行端口（从 profile.ini 读取）。
+    quint16                 m_udpVideoUpPort    = 0;              ///< UDP 视频上行端口（从 profile.ini 读取）。
     RoomInfo                m_currentRoom;                        ///< 当前会议房间信息缓存。
     QString                 m_localUserId;                        ///< 当前用户在服务器分配的 UUID。
     quint32                 m_localNumericId = 0;                 ///< 当前用户在服务器分配的数字 ID（UDP 包头用）。

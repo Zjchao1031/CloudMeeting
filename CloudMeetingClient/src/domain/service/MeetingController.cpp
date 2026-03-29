@@ -5,7 +5,6 @@
 #include "domain/service/MeetingController.h"
 #include "domain/service/ParticipantRepository.h"
 #include "network/NetworkFacade.h"
-#include "common/Constants.h"
 #include <QJsonObject>
 #include <QCryptographicHash>
 
@@ -44,10 +43,13 @@ void MeetingController::setParticipantRepository(ParticipantRepository *repo)
     m_repo = repo;
 }
 
-void MeetingController::setServerConfig(const QString &host, quint16 tcpPort)
+void MeetingController::setServerConfig(const QString &host, quint16 tcpPort,
+                                         quint16 udpAudioUpPort, quint16 udpVideoUpPort)
 {
-    m_serverHost    = host;
-    m_serverTcpPort = tcpPort;
+    m_serverHost     = host;
+    m_serverTcpPort  = tcpPort;
+    m_udpAudioUpPort = udpAudioUpPort;
+    m_udpVideoUpPort = udpVideoUpPort;
 }
 
 void MeetingController::createRoom(const CreateRoomOptions &opts)
@@ -62,6 +64,18 @@ void MeetingController::createRoom(const CreateRoomOptions &opts)
     }
     if (m_serverHost.isEmpty()) {
         emit errorOccurred("配置错误", "服务器地址未配置，请在 profile.ini 中填写 Server/host。");
+        return;
+    }
+    if (m_serverTcpPort == 0) {
+        emit errorOccurred("配置错误", "TCP 信令端口未配置，请在 profile.ini 中填写 Server/tcpPort。");
+        return;
+    }
+    if (m_udpAudioUpPort == 0) {
+        emit errorOccurred("配置错误", "UDP 音频端口未配置，请在 profile.ini 中填写 Server/udpAudioUpPort。");
+        return;
+    }
+    if (m_udpVideoUpPort == 0) {
+        emit errorOccurred("配置错误", "UDP 视频端口未配置，请在 profile.ini 中填写 Server/udpVideoUpPort。");
         return;
     }
 
@@ -87,6 +101,18 @@ void MeetingController::joinRoom(const JoinRoomOptions &opts)
     }
     if (m_serverHost.isEmpty()) {
         emit errorOccurred("配置错误", "服务器地址未配置，请在 profile.ini 中填写 Server/host。");
+        return;
+    }
+    if (m_serverTcpPort == 0) {
+        emit errorOccurred("配置错误", "TCP 信令端口未配置，请在 profile.ini 中填写 Server/tcpPort。");
+        return;
+    }
+    if (m_udpAudioUpPort == 0) {
+        emit errorOccurred("配置错误", "UDP 音频端口未配置，请在 profile.ini 中填写 Server/udpAudioUpPort。");
+        return;
+    }
+    if (m_udpVideoUpPort == 0) {
+        emit errorOccurred("配置错误", "UDP 视频端口未配置，请在 profile.ini 中填写 Server/udpVideoUpPort。");
         return;
     }
 

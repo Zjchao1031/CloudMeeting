@@ -79,6 +79,30 @@ public:
      */
     void setServerTcpPort(quint16 port);
 
+    /**
+     * @brief 获取 UDP 音频上行端口。
+     * @return UDP 音频上行端口号。
+     */
+    quint16 udpAudioUpPort() const;
+
+    /**
+     * @brief 设置 UDP 音频上行端口。
+     * @param[in] port UDP 音频上行端口号。
+     */
+    void setUdpAudioUpPort(quint16 port);
+
+    /**
+     * @brief 获取 UDP 视频上行端口。
+     * @return UDP 视频上行端口号。
+     */
+    quint16 udpVideoUpPort() const;
+
+    /**
+     * @brief 设置 UDP 视频上行端口。
+     * @param[in] port UDP 视频上行端口号。
+     */
+    void setUdpVideoUpPort(quint16 port);
+
 private:
     /**
      * @brief 将头像裁剪为正方形并缩放至 64x64 像素。
@@ -90,6 +114,8 @@ private:
     QString m_nickname;      ///< 当前用户昵称。
     QImage  m_avatar;        ///< 当前用户头像图像（64x64）。
     QString m_avatarBase64;  ///< 头像的 Base64 编码缓存。
-    QString m_serverHost;    ///< 服务器主机地址。
-    quint16 m_serverTcpPort = 9000; ///< 信令服务器 TCP 端口。
+    QString m_serverHost;          ///< 服务器主机地址。
+    quint16 m_serverTcpPort     = 0; ///< 信令服务器 TCP 端口（从 profile.ini 读取）。
+    quint16 m_udpAudioUpPort    = 0; ///< UDP 音频上行端口（从 profile.ini 读取）。
+    quint16 m_udpVideoUpPort    = 0; ///< UDP 视频上行端口（从 profile.ini 读取）。
 };
