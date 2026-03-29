@@ -61,6 +61,12 @@ public:
      */
     void sendUdpRegistration(quint32 numericId);
 
+    /**
+     * @brief 关闭音频和视频 UDP 套接字，停止分片重组定时器，清理状态。
+     *        应在退出会议或断开服务器连接时调用。
+     */
+    void closeUdpSockets();
+
 signals:
     /**
      * @brief 当收到音频数据时发出该信号。
@@ -113,5 +119,6 @@ private:
 
     // 视频分片重组缓冲区： key = (userId, seq)
     QHash<QPair<quint32, quint16>, FragBuf> m_videoFragBuf;
-    QTimer m_gcTimer; ///< 定期清理已超时的不完整分片条目。
+    QTimer  m_gcTimer;       ///< 定期清理已超时的不完整分片条目。
+    QHash<quint32, quint16> m_lastAudioSeq; ///< userId → 已收到的最新音频序号，用于乱序包丢弃。
 };

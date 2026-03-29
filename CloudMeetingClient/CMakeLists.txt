@@ -20,7 +20,6 @@ qt_standard_project_setup()
 
 set(CLIENT_SOURCES
     src/main.cpp
-    src/app/Application.cpp
     src/app/AppContext.cpp
 
     # UI - Main windows
@@ -66,14 +65,12 @@ set(CLIENT_SOURCES
     src/network/MediaUdpClient.cpp
     include/network/MediaUdpClient.h
     src/network/PacketCodec.cpp
-    src/network/ReconnectStrategy.cpp
 
     # Media
     src/media/MediaEngine.cpp
     include/media/MediaEngine.h
     src/media/capture/CameraCaptureStrategy.cpp
     src/media/capture/ScreenCaptureStrategy.cpp
-    src/media/codec/CodecFactory.cpp
     src/media/codec/VideoEncoder.cpp
     src/media/codec/VideoDecoder.cpp
     src/media/codec/AudioEncoder.cpp

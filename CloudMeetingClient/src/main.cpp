@@ -2,7 +2,6 @@
  * @file main.cpp
  * @brief 定义客户端程序入口。
  */
-#include "app/Application.h"
 #include "app/AppContext.h"
 #include "ui/MainWindow.h"
 #include "ui/AppStyle.h"

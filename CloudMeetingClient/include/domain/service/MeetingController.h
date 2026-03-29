@@ -1,6 +1,7 @@
 #pragma once
 #include "domain/model/RoomInfo.h"
 #include "domain/model/Participant.h"
+#include "common/Constants.h"
 #include <QObject>
 #include <QString>
 #include <QJsonObject>
@@ -255,8 +256,8 @@ private:
     MeetingState            m_state         = MeetingState::Idle; ///< 当前状态机状态。
     NetworkFacade          *m_network       = nullptr;            ///< 当前绑定的网络通信门面。
     ParticipantRepository  *m_repo          = nullptr;            ///< 参会者数据仓库。
-    QString                 m_serverHost    = QLatin1String("192.168.88.129"); ///< 信令服务器地址。
-    quint16                 m_serverTcpPort = 9000;               ///< 信令服务器 TCP 端口。
+    QString                 m_serverHost;                                      ///< 信令服务器地址，从 profile.ini 注入。
+    quint16                 m_serverTcpPort = Constants::TCP_SIGNAL_PORT;       ///< 信令服务器 TCP 端口。
     RoomInfo                m_currentRoom;                        ///< 当前会议房间信息缓存。
     QString                 m_localUserId;                        ///< 当前用户在服务器分配的 UUID。
     quint32                 m_localNumericId = 0;                 ///< 当前用户在服务器分配的数字 ID（UDP 包头用）。

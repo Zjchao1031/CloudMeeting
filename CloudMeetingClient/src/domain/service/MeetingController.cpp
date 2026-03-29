@@ -7,6 +7,7 @@
 #include "network/NetworkFacade.h"
 #include "common/Constants.h"
 #include <QJsonObject>
+#include <QCryptographicHash>
 
 MeetingController::MeetingController(QObject *parent)
     : QObject(parent)
@@ -59,6 +60,10 @@ void MeetingController::createRoom(const CreateRoomOptions &opts)
         emit errorOccurred("参数错误", "会议密码长度不能少于 4 位。");
         return;
     }
+    if (m_serverHost.isEmpty()) {
+        emit errorOccurred("配置错误", "服务器地址未配置，请在 profile.ini 中填写 Server/host。");
+        return;
+    }
 
     m_pendingAction = 1;
     m_pendingCreate = opts;
@@ -78,6 +83,10 @@ void MeetingController::joinRoom(const JoinRoomOptions &opts)
     }
     if (opts.roomId.trimmed().isEmpty()) {
         emit errorOccurred("参数错误", "房间号不能为空。");
+        return;
+    }
+    if (m_serverHost.isEmpty()) {
+        emit errorOccurred("配置错误", "服务器地址未配置，请在 profile.ini 中填写 Server/host。");
         return;
     }
 
@@ -149,22 +158,30 @@ quint32 MeetingController::localNumericId() const { return m_localNumericId; }
 
 // ─── private slots ────────────────────────────────────────────────────────────
 
+// 对明文密码做 SHA-256 哈希，返回十六进制字符串；空密码返回空字符串。
+static QString hashPassword(const QString &pwd)
+{
+    if (pwd.isEmpty()) return {};
+    return QString::fromLatin1(
+        QCryptographicHash::hash(pwd.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+
 void MeetingController::onServerConnected()
 {
     if (m_pendingAction == 1) {
-        // 发送创建会议请求。
+        // 发送创建会议请求，密码哈希后传输。
         QJsonObject payload;
         payload["max_members"]  = m_pendingCreate.maxMembers;
         payload["has_password"] = m_pendingCreate.hasPassword;
-        payload["password"]     = m_pendingCreate.password;
+        payload["password"]     = hashPassword(m_pendingCreate.password);
         payload["nickname"]     = m_pendingCreate.nickname;
         payload["avatar_base64"]= m_pendingCreate.avatarBase64;
         m_network->sendCreateRoom(payload);
     } else if (m_pendingAction == 2) {
-        // 发送加入会议请求。
+        // 发送加入会议请求，密码哈希后传输。
         QJsonObject payload;
         payload["room_id"]      = m_pendingJoin.roomId;
-        payload["password"]     = m_pendingJoin.password;
+        payload["password"]     = hashPassword(m_pendingJoin.password);
         payload["nickname"]     = m_pendingJoin.nickname;
         payload["avatar_base64"]= m_pendingJoin.avatarBase64;
         m_network->sendJoinRoom(payload);

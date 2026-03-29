@@ -41,6 +41,8 @@ void JoinRoomHandler::handle(int fd, const std::string &payload)
     ack["host_user_id"]  = room->hostUserId;
     ack["user_id"]       = self->userId;
     ack["numeric_id"]    = self->numericId;
+    ack["audio_up_port"] = static_cast<int>(Constants::UDP_AUDIO_UP_PORT);
+    ack["video_up_port"] = static_cast<int>(Constants::UDP_VIDEO_UP_PORT);
     BroadcastService::instance().sendTo(fd, SignalType::JOIN_ROOM_ACK, ack.dump());
 
     // 将已有成员信息逐条推送给新成员（含媒体状态和 numeric_id）

@@ -24,11 +24,13 @@ void CreateRoomHandler::handle(int fd, const std::string &payload)
     if (!session) return;
 
     nlohmann::json ack;
-    ack["success"]    = true;
-    ack["room_id"]    = roomId;
-    ack["user_id"]    = session->userId;
-    ack["is_host"]    = true;
-    ack["numeric_id"] = session->numericId;
+    ack["success"]       = true;
+    ack["room_id"]       = roomId;
+    ack["user_id"]       = session->userId;
+    ack["is_host"]       = true;
+    ack["numeric_id"]    = session->numericId;
+    ack["audio_up_port"] = static_cast<int>(Constants::UDP_AUDIO_UP_PORT);
+    ack["video_up_port"] = static_cast<int>(Constants::UDP_VIDEO_UP_PORT);
 
     BroadcastService::instance().sendTo(fd, SignalType::CREATE_ROOM_ACK, ack.dump());
 }

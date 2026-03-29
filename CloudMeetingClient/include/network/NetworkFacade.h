@@ -182,6 +182,7 @@ private slots:
 private:
     SignalingClient  *m_signaling    = nullptr;  ///< 信令客户端对象。
     MediaUdpClient   *m_media        = nullptr;  ///< 媒体 UDP 客户端对象。
+    QString           m_serverHost;              ///< 缓存服务器地址，供 ACK 后初始化 UDP 媒体使用。
     QJsonObject       m_lastJoinPayload;         ///< 缓存最近一次 JOIN_ROOM 载荷，用于重连恢复。
     bool              m_hasJoinCache = false;    ///< 是否存在待恢复的 JOIN_ROOM 缓存。
 };

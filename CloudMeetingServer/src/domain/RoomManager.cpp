@@ -13,7 +13,11 @@ std::string RoomManager::createRoom(int maxMembers, bool hasPassword,
                                      const std::string &hostId)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    std::string id = IdGenerator::generateRoomId();
+    // 循环生成，直到获得当前不重复的房间号。
+    std::string id;
+    do {
+        id = IdGenerator::generateRoomId();
+    } while (m_rooms.count(id) > 0);
     Room r;
     r.roomId      = id;
     r.maxMembers  = maxMembers;

@@ -3,6 +3,7 @@
  * @brief 实现用户资料持久化服务。
  */
 #include "domain/service/UserProfileService.h"
+#include "common/Constants.h"
 #include <QSettings>
 #include <QBuffer>
 
@@ -18,8 +19,8 @@ void UserProfileService::load()
     QSettings s(profileFilePath(), QSettings::IniFormat);
 
     // 加载服务器配置。
-    m_serverHost    = s.value("Server/host",    "192.168.88.129").toString();
-    m_serverTcpPort = static_cast<quint16>(s.value("Server/tcpPort", 9000).toUInt());
+    m_serverHost    = s.value("Server/host",    "").toString();
+    m_serverTcpPort = static_cast<quint16>(s.value("Server/tcpPort", Constants::TCP_SIGNAL_PORT).toUInt());
 
     m_nickname = s.value("nickname", "用户").toString();
 

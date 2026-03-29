@@ -31,14 +31,16 @@ NetworkFacade::~NetworkFacade() = default;
 
 void NetworkFacade::connectToServer(const QString &host, quint16 port)
 {
+    m_serverHost = host;
     m_signaling->connectToServer(host, port);
-    // 初始化媒体 UDP 客户端（音频上行 9001，视频上行 9002）。
-    m_media->init(host, Constants::UDP_AUDIO_UP_PORT, Constants::UDP_VIDEO_UP_PORT);
+    // UDP 媒体客户端在收到 CREATE_ROOM_ACK / JOIN_ROOM_ACK 后，
+    // 使用服务端下发的端口号进行初始化，此处仅缓存服务器地址。
 }
 
 void NetworkFacade::disconnectFromServer()
 {
     m_hasJoinCache = false;
+    m_media->closeUdpSockets();
     m_signaling->disconnectFromServer();
 }
 
@@ -99,6 +101,13 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
         const QString uid = payload["user_id"].toString();
         const quint32 nid = payload["numeric_id"].toVariant().toUInt();
         const QString err = payload["error"].toString();
+        if (ok) {
+            const quint16 aPort = static_cast<quint16>(
+                payload["audio_up_port"].toInt(Constants::UDP_AUDIO_UP_PORT));
+            const quint16 vPort = static_cast<quint16>(
+                payload["video_up_port"].toInt(Constants::UDP_VIDEO_UP_PORT));
+            m_media->init(m_serverHost, aPort, vPort);
+        }
         emit createRoomAck(ok, rid, uid, nid, err);
         break;
     }
@@ -109,6 +118,13 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
         const QString uid  = payload["user_id"].toString();
         const quint32 nid  = payload["numeric_id"].toVariant().toUInt();
         const QString err  = payload["error"].toString();
+        if (ok) {
+            const quint16 aPort = static_cast<quint16>(
+                payload["audio_up_port"].toInt(Constants::UDP_AUDIO_UP_PORT));
+            const quint16 vPort = static_cast<quint16>(
+                payload["video_up_port"].toInt(Constants::UDP_VIDEO_UP_PORT));
+            m_media->init(m_serverHost, aPort, vPort);
+        }
         emit joinRoomAck(ok, rid, host, uid, nid, err);
         break;
     }

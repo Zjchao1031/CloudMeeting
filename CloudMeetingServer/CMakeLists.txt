@@ -14,7 +14,6 @@ set(SERVER_SOURCES
     src/server/TcpSignalingServer.cpp
     src/server/UdpMediaServer.cpp
     src/server/EpollReactor.cpp
-    src/domain/Room.cpp
     src/domain/ClientSession.cpp
     src/domain/RoomManager.cpp
     src/domain/SessionManager.cpp

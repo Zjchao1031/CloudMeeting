@@ -21,6 +21,8 @@ MediaUdpClient::MediaUdpClient(QObject *parent)
 {
     connect(&m_audioUdp, &QUdpSocket::readyRead, this, &MediaUdpClient::onAudioDatagram);
     connect(&m_videoUdp, &QUdpSocket::readyRead, this, &MediaUdpClient::onVideoDatagram);
+    // 定时器仅连接一次，由 init()/closeUdpSockets() 控制启停。
+    connect(&m_gcTimer, &QTimer::timeout, this, &MediaUdpClient::onGcTimer);
 }
 
 MediaUdpClient::~MediaUdpClient() {}
@@ -34,8 +36,19 @@ void MediaUdpClient::init(const QString &serverHost, quint16 audioPort, quint16 
     m_audioUdp.bind(QHostAddress::AnyIPv4, 0);
     m_videoUdp.bind(QHostAddress::AnyIPv4, 0);
     // 启动分片重组缓冲区定期清理，2 秒扫一次。
-    connect(&m_gcTimer, &QTimer::timeout, this, &MediaUdpClient::onGcTimer);
     m_gcTimer.start(2000);
+}
+
+void MediaUdpClient::closeUdpSockets()
+{
+    m_gcTimer.stop();
+    m_audioUdp.close();
+    m_videoUdp.close();
+    m_videoFragBuf.clear();
+    m_lastAudioSeq.clear();
+    m_serverHost.clear();
+    m_audioSeq = 0;
+    m_videoSeq = 0;
 }
 
 void MediaUdpClient::sendAudioFrame(quint32 userId, const QByteArray &opusData)
@@ -98,6 +111,14 @@ void MediaUdpClient::onAudioDatagram()
         AudioPacketHeader hdr;
         QByteArray opusData;
         if (!PacketCodec::decodeAudio(datagram, hdr, opusData)) continue;
+
+        // 乱序包丢弃：quint16 无符号差运算天然支持序号绕回（RFC 3550）。
+        if (m_lastAudioSeq.contains(hdr.userId)) {
+            const quint16 diff = static_cast<quint16>(hdr.sequence - m_lastAudioSeq[hdr.userId]);
+            // diff == 0：重复包；diff > 0x7FFF：落后超过半圈 → 均视为乱序，丢弃。
+            if (diff == 0 || diff > 0x7FFF) continue;
+        }
+        m_lastAudioSeq[hdr.userId] = hdr.sequence;
         emit audioDataReceived(hdr.userId, opusData);
     }
 }
