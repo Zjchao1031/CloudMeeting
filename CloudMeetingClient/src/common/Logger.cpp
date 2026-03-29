@@ -2,6 +2,7 @@
  * @file Logger.cpp
  * @brief 实现日志输出工具类（单例模式）。
  */
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QMutexLocker>
 #include <QStringConverter>
@@ -13,7 +14,7 @@ Logger &Logger::instance()
     return s;
 }
 
-Logger::Logger() : m_file(QStringLiteral(CLOUDMEETING_CLIENT_DIR "/latest.log"))
+Logger::Logger() : m_file(QCoreApplication::applicationDirPath() + "/latest.log")
 {
     m_ready = m_file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
     if (m_ready) {

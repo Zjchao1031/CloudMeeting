@@ -3,13 +3,14 @@
  * @brief 实现用户资料持久化服务。
  */
 #include "domain/service/UserProfileService.h"
+#include <QCoreApplication>
 #include <QSettings>
 #include <QBuffer>
 
 namespace {
 QString profileFilePath()
 {
-    return QStringLiteral(CLOUDMEETING_CLIENT_DIR "/profile.ini");
+    return QCoreApplication::applicationDirPath() + "/profile.ini";
 }
 }
 

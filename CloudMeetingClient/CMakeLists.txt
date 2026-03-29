@@ -87,10 +87,6 @@ qt_add_executable(CloudMeetingClient
     avatars.qrc
 )
 
-target_compile_definitions(CloudMeetingClient
-    PRIVATE
-        CLOUDMEETING_CLIENT_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-)
 
 target_link_libraries(CloudMeetingClient
     PRIVATE
