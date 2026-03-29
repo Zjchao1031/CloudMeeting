@@ -12,23 +12,12 @@
 namespace Constants
 {
     /**
-     * @name 服务器地址
-     * @{
-     */
-    inline constexpr const char *DEFAULT_SERVER_HOST = "192.168.88.129"; ///< 默认信令服务器地址。
-    /**
-     * @}
-     */
-
-    /**
      * @name 网络端口
      * @{
      */
     constexpr quint16 TCP_SIGNAL_PORT   = 9000;   ///< TCP 信令端口。
     constexpr quint16 UDP_AUDIO_UP_PORT = 9001;   ///< UDP 音频上行端口。
     constexpr quint16 UDP_VIDEO_UP_PORT = 9002;   ///< UDP 视频上行端口。
-    constexpr quint16 UDP_AUDIO_DN_PORT = 9003;   ///< UDP 音频下行端口。
-    constexpr quint16 UDP_VIDEO_DN_PORT = 9004;   ///< UDP 视频下行端口。
     /**
      * @}
      */
