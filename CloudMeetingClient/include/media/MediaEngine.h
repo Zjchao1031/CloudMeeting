@@ -8,6 +8,7 @@
 #include <QAudioFormat>
 #include <QMediaDevices>
 #include <QString>
+#include <QHash>
 #include <memory>
 #include <unordered_map>
 #include <atomic>
@@ -196,6 +197,12 @@ private:
      */
     QByteArray convertToS16Mono(const QByteArray &raw, const QAudioFormat &srcFmt);
 
+    /**
+     * @brief 带 2 秒冷却的关键帧请求辅助：若距上次请求未超过冷却时间则忽略。
+     * @param[in] userId 需要请求关键帧的远端用户 ID（UUID 字符串）。
+     */
+    void tryRequestKeyframe(const QString &userId);
+
     NetworkFacade *m_network       = nullptr; ///< 绑定的网络门面。
     QString        m_localUserId;              ///< 本地用户 UUID。
     quint32        m_localNumericId = 0;       ///< 本地用户数字 ID（UDP 包头用）。
@@ -231,4 +238,8 @@ private:
     // 帧率节流：记录各路流上次处理帧的时间戳（后端线程读写，需原子操作）。
     std::atomic<qint64> m_lastCameraFrameMs{0}; ///< 摄像头流上次处理帧的毫秒时间戳。
     std::atomic<qint64> m_lastScreenFrameMs{0}; ///< 屏幕共享流上次处理帧的毫秒时间戳。
+
+    // 关键帧请求辅助状态。
+    QHash<QString, int>    m_decodeFailCount;    ///< decoderKey → 连续解码失败帧数（阈值 8 帧触发请求）。
+    QHash<QString, qint64> m_lastKeyframeReqMs; ///< userId → 上次发送关键帧请求的毫秒时间戳（2 秒冷却）。
 };

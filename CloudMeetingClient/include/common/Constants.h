@@ -33,6 +33,7 @@ namespace Constants
     constexpr int VIDEO_FPS         = 24;     ///< 默认视频帧率。
     constexpr int AUDIO_SAMPLE_RATE = 48000;  ///< 默认音频采样率。
     constexpr int AUDIO_CHANNELS    = 1;      ///< 默认音频通道数。
+    constexpr int VIDEO_KEYFRAME_FAIL_THRESHOLD = 8; ///< 连续解码失败帧数阈值，达到后向发送方请求关键帧。
     /**
      * @}
      */

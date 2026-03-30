@@ -49,6 +49,11 @@ void MediaEngine::setNetworkFacade(NetworkFacade *network, const QString &localU
                 this, [this](quint32 userId, QByteArray data) {
             onRemoteAudioData(QString::number(userId), data);
         });
+        // 分片重组超时：向对应发送方请求关键帧。
+        connect(media, &MediaUdpClient::fragmentTimeout,
+                this, [this](quint32 userId) {
+            tryRequestKeyframe(QString::number(userId));
+        });
     }
 }
 
@@ -268,8 +273,16 @@ void MediaEngine::onRemoteVideoData(const QString &userId, const QByteArray &h26
     const QString decoderKey = userId + (isCamera ? QStringLiteral("_cam") : QStringLiteral("_scr"));
     VideoDecoder *dec = ensureVideoDecoder(decoderKey);
     QImage img = dec->decode(h264Data);
-    if (!img.isNull())
+    if (!img.isNull()) {
+        m_decodeFailCount[decoderKey] = 0; // 解码成功，重置该路流的连续失败计数。
         emit remoteVideoFrame(userId, img, isCamera);
+    } else {
+        // 连续解码失败达到阈值时向发送方请求关键帧。
+        if (++m_decodeFailCount[decoderKey] >= Constants::VIDEO_KEYFRAME_FAIL_THRESHOLD) {
+            m_decodeFailCount[decoderKey] = 0;
+            tryRequestKeyframe(userId);
+        }
+    }
 }
 
 void MediaEngine::onRemoteAudioData(const QString &userId, const QByteArray &opusData)
@@ -376,6 +389,16 @@ void MediaEngine::removeUserDecoder(const QString &userId)
             m_videoDecoders.erase(key);
     }
     Logger::info(QStringLiteral("[MediaEngine] 已移除用户 %1 的视频解码器").arg(userId));
+}
+
+void MediaEngine::tryRequestKeyframe(const QString &userId)
+{
+    constexpr qint64 COOLDOWN_MS = 2000; // 2 秒冷却，防止泛洪。
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (now - m_lastKeyframeReqMs.value(userId, 0) < COOLDOWN_MS) return;
+    m_lastKeyframeReqMs[userId] = now;
+    if (m_network)
+        m_network->sendRequestKeyframe(userId);
 }
 
 void MediaEngine::stopAll()

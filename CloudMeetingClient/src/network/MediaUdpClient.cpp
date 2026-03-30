@@ -7,6 +7,7 @@
 #include "common/Constants.h"
 #include <QHostAddress>
 #include <QDateTime>
+#include <QSet>
 
 // 视频分片最大负载字节数（MTU 1500 - IP/UDP 头 - 视频包头）。
 static constexpr int VIDEO_MTU_PAYLOAD = 1400;
@@ -197,13 +198,18 @@ void MediaUdpClient::onGcTimer()
 
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
 
-    // 移除超过 2 秒仍未完成的分片条目。
+    // 收集本轮超时条目对应的 userId，去重后统一 emit。
+    QSet<quint32> timedOutUsers;
     for (auto it = m_videoFragBuf.begin(); it != m_videoFragBuf.end(); ) {
-        if (now - it->arrivedAt > TIMEOUT_MS)
+        if (now - it->arrivedAt > TIMEOUT_MS) {
+            timedOutUsers.insert(it.key().first);
             it = m_videoFragBuf.erase(it);
-        else
+        } else {
             ++it;
+        }
     }
+    for (quint32 uid : std::as_const(timedOutUsers))
+        emit fragmentTimeout(uid);
 
     // 硬上限兜底：超过 128 条时直接清空。
     if (m_videoFragBuf.size() > MAX_ENTRIES)

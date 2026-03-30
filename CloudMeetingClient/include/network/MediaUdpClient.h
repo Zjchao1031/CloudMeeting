@@ -83,6 +83,12 @@ signals:
      */
     void videoDataReceived(quint32 userId, QByteArray data, bool isCamera);
 
+    /**
+     * @brief 当某路视频分片重组因超时被清理时发出，接收端可据此向发送方请求关键帧。
+     * @param[in] userId 分片超时的视频流所属用户标识。
+     */
+    void fragmentTimeout(quint32 userId);
+
 private slots:
     /**
      * @brief 处理音频套接字的可读事件。
