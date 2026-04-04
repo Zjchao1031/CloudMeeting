@@ -78,10 +78,11 @@ void NetworkFacade::sendChatMessage(const QString &text)
     m_signaling->sendPacket(static_cast<quint8>(SignalType::CHAT_MESSAGE), obj);
 }
 
-void NetworkFacade::sendRequestKeyframe(const QString &targetUserId)
+void NetworkFacade::sendRequestKeyframe(const QString &targetUserId, bool isCamera)
 {
     QJsonObject obj;
     obj["target_user_id"] = targetUserId;
+    obj["is_camera"]      = isCamera;
     m_signaling->sendPacket(static_cast<quint8>(SignalType::REQUEST_KEYFRAME), obj);
 }
 
@@ -143,7 +144,7 @@ void NetworkFacade::onPacketReceived(quint8 type, QJsonObject payload)
         emit chatBroadcast(payload);
         break;
     case SignalType::REQUEST_KEYFRAME:
-        emit keyframeRequested();
+        emit keyframeRequested(payload["is_camera"].toBool());
         break;
     default:
         break;

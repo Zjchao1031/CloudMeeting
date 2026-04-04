@@ -15,6 +15,12 @@ VideoDecoder::VideoDecoder() {}
 
 VideoDecoder::~VideoDecoder() { close(); }
 
+void VideoDecoder::flush()
+{
+    if (m_opened)
+        avcodec_flush_buffers(m_codecCtx);
+}
+
 bool VideoDecoder::open()
 {
     if (m_opened) return true;
@@ -95,6 +101,11 @@ QImage VideoDecoder::decode(const QByteArray &h264Data)
                     w, h, static_cast<AVPixelFormat>(m_frame->format),
                     w, h, AV_PIX_FMT_RGB32,
                     SWS_BILINEAR, nullptr, nullptr, nullptr);
+                if (!m_swsCtx) {
+                    Logger::warn(QStringLiteral("[VideoDecoder] 无法创建 sws 上下文 (%1x%2)").arg(w).arg(h));
+                    m_swsW = m_swsH = 0;
+                    continue;
+                }
 
                 int bufSize = av_image_get_buffer_size(AV_PIX_FMT_RGB32, w, h, 1);
                 m_rgbBuf = static_cast<uint8_t*>(av_malloc(bufSize));

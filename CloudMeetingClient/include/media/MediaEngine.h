@@ -110,8 +110,9 @@ public:
 
     /**
      * @brief 请求视频编码器强制输出 IDR 关键帧。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void forceVideoKeyFrame();
+    void forceVideoKeyFrame(bool isCamera);
 
     /**
      * @brief 设置本地用户 ID，用于标识发送的媒体数据包。
@@ -200,8 +201,9 @@ private:
     /**
      * @brief 带 2 秒冷却的关键帧请求辅助：若距上次请求未超过冷却时间则忽略。
      * @param[in] userId 需要请求关键帧的远端用户 ID（UUID 字符串）。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void tryRequestKeyframe(const QString &userId);
+    void tryRequestKeyframe(const QString &userId, bool isCamera);
 
     NetworkFacade *m_network       = nullptr; ///< 绑定的网络门面。
     QString        m_localUserId;              ///< 本地用户 UUID。

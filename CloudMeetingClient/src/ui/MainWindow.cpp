@@ -354,12 +354,17 @@ void MainWindow::bindServices()
             const bool remoteScreen = payload[QStringLiteral("screen_share")].toBool();
             const QString uid = payload[QStringLiteral("user_id")].toString();
 
-            if ((remoteCamera || remoteScreen) && !uid.isEmpty())
-                nf->sendRequestKeyframe(uid);
+            if (!uid.isEmpty()) {
+                if (remoteCamera) nf->sendRequestKeyframe(uid, true);
+                if (remoteScreen) nf->sendRequestKeyframe(uid, false);
+            }
 
             if (m_localCameraOn || m_localScreenShareOn) {
                 auto *me = AppContext::instance().mediaEngine();
-                if (me) me->forceVideoKeyFrame();
+                if (me) {
+                    if (m_localCameraOn)      me->forceVideoKeyFrame(true);
+                    if (m_localScreenShareOn) me->forceVideoKeyFrame(false);
+                }
             }
         });
     }

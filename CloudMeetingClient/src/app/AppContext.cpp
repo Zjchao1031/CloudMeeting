@@ -76,7 +76,7 @@ void AppContext::setup()
         if (media) media->sendUdpRegistration(nid);
     });
 
-    // 收到关键帧请求时强制编码器输出 IDR 帧。
+    // 收到关键帧请求时强制对应流的编码器输出 IDR 帧。
     QObject::connect(m_networkFacade.get(), &NetworkFacade::keyframeRequested,
                      m_mediaEngine.get(),   &MediaEngine::forceVideoKeyFrame);
 

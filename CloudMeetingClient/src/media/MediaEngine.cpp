@@ -52,7 +52,10 @@ void MediaEngine::setNetworkFacade(NetworkFacade *network, const QString &localU
         // 分片重组超时：向对应发送方请求关键帧。
         connect(media, &MediaUdpClient::fragmentTimeout,
                 this, [this](quint32 userId) {
-            tryRequestKeyframe(QString::number(userId));
+            // 分片超时时流类型未知，保守地对两路都请求关键帧。
+            const QString uid = QString::number(userId);
+            tryRequestKeyframe(uid, true);
+            tryRequestKeyframe(uid, false);
         });
     }
 }
@@ -280,7 +283,8 @@ void MediaEngine::onRemoteVideoData(const QString &userId, const QByteArray &h26
         // 连续解码失败达到阈值时向发送方请求关键帧。
         if (++m_decodeFailCount[decoderKey] >= Constants::VIDEO_KEYFRAME_FAIL_THRESHOLD) {
             m_decodeFailCount[decoderKey] = 0;
-            tryRequestKeyframe(userId);
+            dec->flush(); // 清空 DPB，避免旧残帧干扰即将到来的 IDR 解码。
+            tryRequestKeyframe(userId, isCamera);
         }
     }
 }
@@ -364,10 +368,12 @@ void MediaEngine::setPlaybackVolume(int value)
     m_playbackVolume = qBound(0, value, 100);
 }
 
-void MediaEngine::forceVideoKeyFrame()
+void MediaEngine::forceVideoKeyFrame(bool isCamera)
 {
-    m_cameraEncoder->forceKeyFrame();
-    m_screenEncoder->forceKeyFrame();
+    if (isCamera)
+        m_cameraEncoder->forceKeyFrame();
+    else
+        m_screenEncoder->forceKeyFrame();
 }
 
 void MediaEngine::setLocalUserId(const QString &userId)
@@ -391,14 +397,16 @@ void MediaEngine::removeUserDecoder(const QString &userId)
     Logger::info(QStringLiteral("[MediaEngine] 已移除用户 %1 的视频解码器").arg(userId));
 }
 
-void MediaEngine::tryRequestKeyframe(const QString &userId)
+void MediaEngine::tryRequestKeyframe(const QString &userId, bool isCamera)
 {
     constexpr qint64 COOLDOWN_MS = 2000; // 2 秒冷却，防止泛洪。
+    // 以 "userId_cam" / "userId_scr" 为冷却 key，两路流独立冷却。
+    const QString cooldownKey = userId + (isCamera ? QStringLiteral("_cam") : QStringLiteral("_scr"));
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (now - m_lastKeyframeReqMs.value(userId, 0) < COOLDOWN_MS) return;
-    m_lastKeyframeReqMs[userId] = now;
+    if (now - m_lastKeyframeReqMs.value(cooldownKey, 0) < COOLDOWN_MS) return;
+    m_lastKeyframeReqMs[cooldownKey] = now;
     if (m_network)
-        m_network->sendRequestKeyframe(userId);
+        m_network->sendRequestKeyframe(userId, isCamera);
 }
 
 void MediaEngine::stopAll()

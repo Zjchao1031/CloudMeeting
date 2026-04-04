@@ -76,8 +76,9 @@ public:
     /**
      * @brief 发送关键帧请求信令。
      * @param[in] targetUserId 需要重新发送关键帧的目标用户 ID。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void sendRequestKeyframe(const QString &targetUserId);
+    void sendRequestKeyframe(const QString &targetUserId, bool isCamera);
 
     /**
      * @brief 获取媒体 UDP 客户端。
@@ -170,8 +171,9 @@ signals:
 
     /**
      * @brief 收到来自服务器的关键帧请求时发出，本端应立即强制输出 IDR 帧。
+     * @param[in] isCamera 是否为摄像头流（否则为屏幕共享流）。
      */
-    void keyframeRequested();
+    void keyframeRequested(bool isCamera);
 
 private slots:
     /**

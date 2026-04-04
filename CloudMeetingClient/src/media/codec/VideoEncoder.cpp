@@ -58,6 +58,11 @@ bool VideoEncoder::open(int width, int height, int fps)
         width, height, AV_PIX_FMT_RGB32,
         width, height, AV_PIX_FMT_YUV420P,
         SWS_BILINEAR, nullptr, nullptr, nullptr);
+    if (!m_swsCtx) {
+        Logger::warn(QStringLiteral("[VideoEncoder] 无法创建 sws 上下文"));
+        avcodec_free_context(&m_codecCtx);
+        return false;
+    }
 
     // 分配 YUV 帧。
     m_yuvFrame = av_frame_alloc();

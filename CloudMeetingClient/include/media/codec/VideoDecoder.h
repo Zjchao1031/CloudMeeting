@@ -48,6 +48,11 @@ public:
      */
     QImage decode(const QByteArray &h264Data);
 
+    /**
+     * @brief 刷新解码器内部状态（清空 DPB），在关键帧丢失后请求新 IDR 前调用。
+     */
+    void flush();
+
 private:
     AVCodecContext       *m_codecCtx  = nullptr; ///< FFmpeg H.264 解码器上下文。
     AVCodecParserContext *m_parser    = nullptr; ///< H.264 码流解析器。
